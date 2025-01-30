@@ -32,6 +32,7 @@ import com.quadrants.memorix.LoaderIntro
 import com.quadrants.memorix.ui.theme.DarkViolet
 import com.quadrants.memorix.ui.theme.MediumViolet
 import com.quadrants.memorix.ui.theme.GoldenYellow
+import com.quadrants.memorix.ui.theme.WorkSans
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -172,7 +173,7 @@ fun BottomSection(currentPage: Int, pageCount: Int, onFinish: () -> Unit) {
                     text = "Get Started",
                     modifier = Modifier
                         .padding(vertical = 8.dp, horizontal = 40.dp),
-                    color = DarkViolet // Button text
+                    color = GoldenYellow// Button text
                 )
             }
         } else {
@@ -188,8 +189,9 @@ fun SkipNextButton(text: String) {
         text = text,
         color = GoldenYellow, // Accent color for buttons
         fontSize = 18.sp,
-        fontWeight = FontWeight.Medium,
-        modifier = Modifier.padding(horizontal = 20.dp)
+        fontWeight = FontWeight.Normal,
+        modifier = Modifier.padding(horizontal = 20.dp),
+        fontFamily = WorkSans
     )
 }
 

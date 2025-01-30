@@ -131,13 +131,23 @@ fun SignUpScreen(navController: NavController) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(180.dp))
+            Spacer(modifier = Modifier.height(160.dp))
 
             // Log in Redirection
             TextButton(
-                onClick = { navController.navigate("login") }
+                onClick = { navController.navigate("login") },
+                modifier = Modifier
+                    .fillMaxWidth(0.85f) // Match the button size from the image
+                    .height(55.dp) // Fixed height
+                    .border(width = 1.dp, color = GoldenYellow, shape = RoundedCornerShape(8.dp)) // Border added
             ) {
-                Text(text = "Log in", color = White, fontSize = 14.sp, fontFamily = WorkSans, fontStyle = FontStyle.Normal)
+                Text(
+                    text = "Log in",
+                    color = White,
+                    fontSize = 12.sp,
+                    fontFamily = WorkSans,
+                    fontStyle = FontStyle.Normal
+                )
             }
         }
     }
