@@ -12,27 +12,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.quadrants.memorix.R
+import com.quadrants.memorix.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(navController: NavController) {
-    // Theme colors
-    val backgroundColor = Color(0xFF1A001F) // Dark purple background
-    val buttonColor = Color(0xFF736B70) // Light purple/gray for the button
-    val textColor = Color.White
-
-    // State management for input fields
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = backgroundColor
+        containerColor = DarkViolet // Background Color
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -42,125 +39,127 @@ fun LoginScreen(navController: NavController) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Top Content (Back Button and Logo)
+            // Top Navigation Row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Back Button
                 Icon(
                     imageVector = Icons.Default.ArrowBack,
                     contentDescription = "Back",
-                    tint = textColor,
+                    tint = White,
                     modifier = Modifier
-                        .size(24.dp)
-                        .clickable { navController.popBackStack() } // Navigate back
+                        .size(30.dp)
+                        .clickable { navController.popBackStack() }
                 )
 
-                // Logo Icon
                 Icon(
                     painter = painterResource(id = R.drawable.owl_icon),
                     contentDescription = "Logo",
-                    tint = textColor,
-                    modifier = Modifier.size(40.dp)
+                    tint = White,
+                    modifier = Modifier.size(70.dp)
                 )
             }
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // "Log in" Title
+            // Log in Title
             Text(
                 text = "Log in",
-                style = MaterialTheme.typography.headlineMedium,
-                color = textColor,
-                modifier = Modifier.padding(bottom = 24.dp)
-            )
-
-            // Email or Username Input Field
-            TextField(
-                value = email,
-                onValueChange = { email = it },
-                label = { Text(text = "Email or username") },
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = buttonColor,
-                    unfocusedContainerColor = buttonColor,
-                    disabledContainerColor = buttonColor,
-                    focusedTextColor = textColor,
-                    unfocusedTextColor = textColor
+                style = TextStyle(
+                    fontFamily = WorkSans,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 32.sp,
+                    color = Color.White
                 ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                shape = RoundedCornerShape(8.dp)
-            )
-
-            // Password Input Field
-            TextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text(text = "Password") },
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = buttonColor,
-                    unfocusedContainerColor = buttonColor,
-                    disabledContainerColor = buttonColor,
-                    focusedTextColor = textColor,
-                    unfocusedTextColor = textColor
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                shape = RoundedCornerShape(8.dp)
-            )
-
-            // Log In Button
-            Button(
-                onClick = { /* TODO: Handle login logic */ },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(text = "Log in", color = textColor)
-            }
-
-            // Forgot Password Text
-            Text(
-                text = "Forgot Password?",
-                style = MaterialTheme.typography.bodyMedium,
-                color = textColor,
-                modifier = Modifier
-                    .clickable { /* TODO: Handle forgot password */ }
-                    .padding(top = 8.dp)
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Sign-up Redirection Text
-            Text(
-                text = "Don't have an account?",
-                fontSize = 16.sp,
-                color = textColor,
                 textAlign = TextAlign.Center
             )
 
-            TextButton(
-                onClick = { navController.navigate("signup") } // Navigate to SignUp
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Email Field
+            TextField(
+                value = email,
+                onValueChange = { email = it },
+                label = { Text(text = "Email or username", color = White, style = TextStyle(fontFamily = WorkSans, fontWeight = FontWeight.Normal)) },
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = DarkieViolet, // Background color
+                    unfocusedContainerColor = DarkieViolet, // Background color when not focused
+                    focusedTextColor = White,
+                    unfocusedTextColor = White,
+                    focusedIndicatorColor = Color.Transparent, // Remove underline
+                    unfocusedIndicatorColor = Color.Transparent // Remove underline
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(DarkieViolet, RoundedCornerShape(8.dp))
+                    .padding(horizontal = 8.dp)
+            )
+
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Password Field
+            TextField(
+                value = password,
+                onValueChange = { password = it },
+                label = {
+                    Text(
+                        text = "Password",
+                        color = White,
+                        style = TextStyle(fontFamily = WorkSans, fontWeight = FontWeight.Normal)
+                    )
+                },
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = DarkieViolet, // Background when focused
+                    unfocusedContainerColor = DarkieViolet, // Background when not focused
+                    focusedTextColor = White, // Text color when focused
+                    unfocusedTextColor = White, // Text color when not focused
+                    focusedIndicatorColor = Color.Transparent, // Remove underline
+                    unfocusedIndicatorColor = Color.Transparent // Remove underline
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(DarkieViolet, RoundedCornerShape(8.dp))
+                    .padding(horizontal = 8.dp)
+            )
+
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Log in Button
+            Button(
+                onClick = { navController.navigate("onboarding") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = GoldenYellow),
+                shape = RoundedCornerShape(10.dp)
             ) {
-                Text(text = "Sign up", color = Color.White, fontSize = 18.sp)
+                Text(
+                    text = "Log in",
+                    color = DarkViolet,
+                    style = TextStyle(fontFamily = WorkSans, fontWeight = FontWeight.Medium)
+                )
             }
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Footer Text
+            // Sign up Prompt
             Text(
-                text = "Memorix Inc.",
-                style = MaterialTheme.typography.labelSmall,
-                color = textColor,
-                modifier = Modifier.padding(bottom = 8.dp)
+                text = "Don't have an account?",
+                fontSize = 16.sp,
+                color = White,
+                textAlign = TextAlign.Center,
             )
+
+            TextButton(
+                onClick = { navController.navigate("signup") }
+            ) {
+                Text(text = "Sign up", color = White, fontSize = 15.sp)
+            }
         }
     }
 }

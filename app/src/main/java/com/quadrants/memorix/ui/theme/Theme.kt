@@ -2,40 +2,41 @@ package com.quadrants.memorix.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
+// Dark Theme Colors (When Dark Mode is Enabled)
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = DarkViolet,
+    secondary = MediumViolet,
+    tertiary = RoyalBlue,
+    background = DarkViolet,
+    surface = DarkViolet,
+    onPrimary = White,
+    onSecondary = White,
+    onTertiary = GoldenYellow, // Text color for accents
+    onBackground = White,
+    onSurface = White
 )
 
+// Light Theme Colors (For Light Mode)
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    primary = DarkViolet,
+    secondary = MediumViolet,
+    tertiary = RoyalBlue,
+    background = White,
+    surface = White,
+    onPrimary = DarkViolet,
+    onSecondary = DarkViolet,
+    onTertiary = GoldenYellow,
+    onBackground = DarkViolet,
+    onSurface = DarkViolet
 )
 
 @Composable
-fun MemorixTheme(
+fun MemorixTheme( 
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
@@ -44,7 +45,6 @@ fun MemorixTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }

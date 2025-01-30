@@ -1,48 +1,62 @@
 package com.quadrants.memorix.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.*
+import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.quadrants.memorix.R
+import com.quadrants.memorix.ui.theme.DarkViolet
+import com.quadrants.memorix.ui.theme.MediumViolet
 import kotlinx.coroutines.delay
 
 @Composable
 fun SplashScreen(navController: NavController) {
+    // Animation state for fade-in effect
+    var isVisible by remember { mutableStateOf(false) }
+
+    // Trigger fade-in animation
+    LaunchedEffect(Unit) {
+        isVisible = true
+        delay(2500L) // Delay before navigating
+        navController.navigate("signup") {
+            popUpTo("splash") { inclusive = true } // Remove SplashScreen from backstack
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
-                Brush.linearGradient(
+                Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF6C3393), // Purple
-                        Color(0xFF210F2D) // Darker purple
+                        MediumViolet, // Gradient start color
+                        DarkViolet // Gradient end color
                     )
                 )
-            )
+            ),
+        contentAlignment = Alignment.Center // Center everything inside the Box
     ) {
-        Image(
-            painter = painterResource(id = R.drawable.owl_icon),
-            contentDescription = "Owl Icon",
-            modifier = Modifier
-                .size(200.dp)
-                .align(Alignment.Center)
-        )
-    }
-
-    // Navigate to Sign-Up Screen after a delay
-    LaunchedEffect(Unit) {
-        delay(3000L) // 3 seconds
-        navController.navigate("signup") {
-            popUpTo("splash") { inclusive = true } // Remove SplashScreen from backstack
+        // Centered Animated Owl Icon
+        AnimatedVisibility(
+            visible = isVisible,
+            enter = fadeIn(animationSpec = tween(1500)) // Smooth fade-in
+        ) {
+            Box(contentAlignment = Alignment.Center) { // Ensures the logo is centered
+                Image(
+                    painter = painterResource(id = R.drawable.owl_icon),
+                    contentDescription = "Owl Icon",
+                    modifier = Modifier.size(200.dp)
+                )
+            }
         }
     }
 }
