@@ -18,44 +18,55 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.TextFieldValue
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.quadrants.memorix.R
+import com.quadrants.memorix.ui.theme.DarkViolet
+import com.quadrants.memorix.ui.theme.DarkieViolet
+import com.quadrants.memorix.ui.theme.MediumViolet
+import com.quadrants.memorix.ui.theme.WorkSans
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavController) {
-    var showBottomSheet by remember { mutableStateOf(false) } // ✅ Track bottom sheet visibility
+    var showBottomSheet by remember { mutableStateOf(false) }
+    val systemUiController = rememberSystemUiController()
+
+    // **Set Status Bar & Navigation Bar Colors**
+    SideEffect {
+        systemUiController.setStatusBarColor(DarkViolet, darkIcons = false)
+        systemUiController.setNavigationBarColor(DarkViolet, darkIcons = false) // ✅ Match the background
+    }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF1A001F)) // Dark background
+            .background(DarkViolet)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 56.dp), // ✅ Ensures content doesn't overlap bottom nav
+                .padding(top = 32.dp, bottom = 56.dp), // ✅ Added top padding
             verticalArrangement = Arrangement.Top
         ) {
             SearchBar()
             QuizQuestionSection()
-
-            // ✅ Spacer forces BottomNavBar to stay at the bottom
             Spacer(modifier = Modifier.weight(1f))
         }
 
-        // ✅ Bottom Navigation Bar - Now correctly positioned at the bottom
         BottomNavBar(
             navController,
+            currentScreen = "home",
             onPlusClick = { showBottomSheet = true },
-            modifier = Modifier.align(Alignment.BottomCenter) // ✅ Forces position at bottom
+            modifier = Modifier.align(Alignment.BottomCenter)
         )
 
-        // ✅ Bottom Sheet (Appears over BottomNavBar)
         if (showBottomSheet) {
             ModalBottomSheet(
-                onDismissRequest = { showBottomSheet = false }, // Close when tapped outside
-                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), // ✅ Correct parameter
-                containerColor = Color(0xFF6A4C93) // Dark Purple background
+                onDismissRequest = { showBottomSheet = false },
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                containerColor = MediumViolet
             ) {
                 BottomSheetContent { showBottomSheet = false }
             }
@@ -63,44 +74,53 @@ fun HomeScreen(navController: NavController) {
     }
 }
 
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchBar() {
+    var searchText by remember { mutableStateOf(TextFieldValue("")) }
 
-    Row(
+    TextField(
+        value = searchText,
+        onValueChange = { searchText = it },
+        placeholder = {
+            Text(
+                "Search flashcards, quizzes, questions...",
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 14.sp,
+                fontFamily = WorkSans
+            )
+        },
+        leadingIcon = {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_search),
+                contentDescription = "Search",
+                tint = Color.White,
+                modifier = Modifier.size(14.dp)
+
+            )
+        },
+        trailingIcon = {
+            Icon(
+                painter = painterResource(id = R.drawable.owl_icon),
+                contentDescription = "Logo",
+                tint = Color.White
+            )
+        },
+        textStyle = TextStyle(color = Color.White), // ✅ Corrected Here!
+        singleLine = true,
+        colors = TextFieldDefaults.textFieldColors(
+            containerColor = MediumViolet,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent
+        ),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
             .clip(RoundedCornerShape(25.dp))
-            .background(Color(0xFF693D7D)) // Dark Purple
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            painter = painterResource(id = R.drawable.ic_search),
-            contentDescription = "Folder",
-            tint = Color.White,
-            modifier = Modifier.size(24.dp)
-        )
+    )
 
-        Text(
-            text = "Flashcard sets, quizzes, questions",
-            color = Color.White.copy(alpha = 0.7f),
-            textAlign = TextAlign.Start,
-            fontSize = 14.sp,
-            modifier = Modifier
-                .weight(1f)
-                .padding(start = 8.dp)
-        )
-
-        Icon(
-            painter = painterResource(id = R.drawable.owl_icon),
-            contentDescription = "Logo",
-            tint = Color.White,
-            modifier = Modifier.size(36.dp)
-        )
-    }
 }
-
 @Composable
 fun QuizQuestionSection() {
     Column(
@@ -158,10 +178,11 @@ fun AnswerButton(text: String, color: Color, modifier: Modifier = Modifier, onCl
 }
 
 @Composable
-fun BottomNavBar(navController: NavController, onPlusClick: () -> Unit, modifier: Modifier = Modifier) {
+
+fun BottomNavBar(navController: NavController, currentScreen: String, onPlusClick: (() -> Unit)? = null, modifier: Modifier = Modifier) {
     BottomAppBar(
-        modifier = modifier.fillMaxWidth(), // ✅ Modifier now correctly applied
-        containerColor = Color(0xFF1A001F).copy(alpha = 0.95f), // Dark purple fade
+        modifier = modifier.fillMaxWidth(),
+        containerColor = DarkieViolet,
         tonalElevation = 8.dp
     ) {
         Row(
@@ -169,33 +190,52 @@ fun BottomNavBar(navController: NavController, onPlusClick: () -> Unit, modifier
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            BottomNavItem(iconId = R.drawable.ic_home, label = "Home") { navController.navigate("home") }
-            BottomNavItem(iconId = R.drawable.ic_folder, label = "Library") { navController.navigate("library") }
+            BottomNavItem(
+                iconId = R.drawable.ic_home,
+                label = "Home",
+                isSelected = currentScreen == "home"
+            ) { navController.navigate("home") }
 
-            // ✅ Plus Icon - Clickable to open Bottom Sheet
-            Column(
-                modifier = Modifier
-                    .size(56.dp) // Larger size
-                    .clickable { onPlusClick() }, // Open Bottom Sheet
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_add),
-                    contentDescription = "Add",
-                    tint = Color.White,
-                    modifier = Modifier.size(32.dp) // Bigger icon
-                )
+            BottomNavItem(
+                iconId = R.drawable.ic_folder,
+                label = "Library",
+                isSelected = currentScreen == "library"
+            ) { navController.navigate("folders") }
+
+            if (onPlusClick != null) {
+                Column(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clickable { onPlusClick() },
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_add),
+                        contentDescription = "Add",
+                        tint = Color.White,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
             }
 
-            BottomNavItem(iconId = R.drawable.ic_barchart, label = "Stats") { navController.navigate("stats") }
-            BottomNavItem(iconId = R.drawable.ic_profile, label = "Profile") { navController.navigate("profile") }
+            BottomNavItem(
+                iconId = R.drawable.ic_barchart,
+                label = "Stats",
+                isSelected = currentScreen == "stats"
+            ) { navController.navigate("stats") }
+
+            BottomNavItem(
+                iconId = R.drawable.ic_profile,
+                label = "Profile",
+                isSelected = currentScreen == "profile"
+            ) { navController.navigate("profile") }
         }
     }
 }
 
 
 @Composable
-fun BottomNavItem(iconId: Int, label: String, onClick: () -> Unit) {
+fun BottomNavItem(iconId: Int, label: String, isSelected: Boolean, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .clickable { onClick() }
@@ -205,13 +245,12 @@ fun BottomNavItem(iconId: Int, label: String, onClick: () -> Unit) {
         Icon(
             painter = painterResource(id = iconId),
             contentDescription = label,
-            tint = Color.White,
+            tint = if (isSelected) Color(0xFFFFD700) else Color.White,
             modifier = Modifier.size(24.dp)
         )
         Text(text = label, color = Color.White, fontSize = 12.sp)
     }
 }
-
 
 @Composable
 fun BottomSheetContent(onDismiss: () -> Unit) {

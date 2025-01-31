@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.ui.tooling.preview.Preview
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.quadrants.memorix.OnBoardingData
 import com.quadrants.memorix.R
 import com.quadrants.memorix.LoaderIntro
@@ -37,8 +38,18 @@ import com.quadrants.memorix.ui.theme.WorkSans
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun OnboardScreen(
+
     onFinish: () -> Unit // Callback for navigation
-) {
+
+)
+{
+    val systemUiController = rememberSystemUiController()
+
+    // **Set Status Bar & Navigation Bar Colors**
+    SideEffect {
+        systemUiController.setStatusBarColor(DarkViolet, darkIcons = false)
+        systemUiController.setNavigationBarColor(DarkViolet, darkIcons = false) // ✅ Match the background
+    }
     val items = listOf(
         OnBoardingData(
             R.raw.scrolling,

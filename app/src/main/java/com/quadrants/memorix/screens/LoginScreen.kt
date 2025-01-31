@@ -1,6 +1,7 @@
 package com.quadrants.memorix.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,6 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.quadrants.memorix.R
 import com.quadrants.memorix.ui.theme.*
 
@@ -26,7 +28,13 @@ import com.quadrants.memorix.ui.theme.*
 fun LoginScreen(navController: NavController) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    val systemUiController = rememberSystemUiController()
 
+    // **Set Status Bar & Navigation Bar Colors**
+    SideEffect {
+        systemUiController.setStatusBarColor(DarkViolet, darkIcons = false)
+        systemUiController.setNavigationBarColor(DarkViolet, darkIcons = false) // ✅ Match the background
+    }
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = DarkViolet // Background Color
@@ -85,7 +93,7 @@ fun LoginScreen(navController: NavController) {
                 onValueChange = { email = it },
                 label = { Text(text = "Email or username", color = White, style = TextStyle(fontFamily = WorkSans, fontWeight = FontWeight.Normal)) },
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = DarkieViolet, // Background color
+                    focusedContainerColor = MediumViolet, // Background color
                     unfocusedContainerColor = DarkieViolet, // Background color when not focused
                     focusedTextColor = White,
                     unfocusedTextColor = White,
@@ -96,6 +104,7 @@ fun LoginScreen(navController: NavController) {
                     .fillMaxWidth()
                     .background(DarkieViolet, RoundedCornerShape(8.dp))
                     .padding(horizontal = 8.dp)
+                    .border(1.dp, color = GoldenYellow)
             )
 
 
@@ -113,7 +122,7 @@ fun LoginScreen(navController: NavController) {
                     )
                 },
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = DarkieViolet, // Background when focused
+                    focusedContainerColor = MediumViolet, // Background when focused
                     unfocusedContainerColor = DarkieViolet, // Background when not focused
                     focusedTextColor = White, // Text color when focused
                     unfocusedTextColor = White, // Text color when not focused
@@ -124,6 +133,7 @@ fun LoginScreen(navController: NavController) {
                     .fillMaxWidth()
                     .background(DarkieViolet, RoundedCornerShape(8.dp))
                     .padding(horizontal = 8.dp)
+                    .border(1.dp, color = GoldenYellow)
             )
 
 

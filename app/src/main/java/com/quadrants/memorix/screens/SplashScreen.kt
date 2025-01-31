@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.quadrants.memorix.R
 import com.quadrants.memorix.ui.theme.DarkViolet
 import com.quadrants.memorix.ui.theme.MediumViolet
@@ -22,7 +23,13 @@ import kotlinx.coroutines.delay
 fun SplashScreen(navController: NavController) {
     // Animation state for fade-in effect
     var isVisible by remember { mutableStateOf(false) }
+    val systemUiController = rememberSystemUiController()
 
+    // **Set Status Bar & Navigation Bar Colors**
+    SideEffect {
+        systemUiController.setStatusBarColor(MediumViolet, darkIcons = false)
+        systemUiController.setNavigationBarColor(DarkViolet, darkIcons = false) // ✅ Match the background
+    }
     // Trigger fade-in animation
     LaunchedEffect(Unit) {
         isVisible = true

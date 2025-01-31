@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -18,11 +19,21 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.quadrants.memorix.R
 import com.quadrants.memorix.ui.theme.*
 
 @Composable
 fun SignUpScreen(navController: NavController) {
+
+    val systemUiController = rememberSystemUiController()
+
+    // **Set Status Bar & Navigation Bar Colors**
+    SideEffect {
+        systemUiController.setStatusBarColor(DarkViolet, darkIcons = false)
+        systemUiController.setNavigationBarColor(DarkViolet, darkIcons = false) // ✅ Match the background
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
