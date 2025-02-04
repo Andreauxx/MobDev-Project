@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "661088903021",
+    "project_id": "mobdev-application",
+    "storage_bucket": "mobdev-application.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:661088903021:android:f692b9be1d229ac2fac464",
+        "android_client_info": {
+          "package_name": "com.quadrants.memorix"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDFSGnKWT4oBJGs6SDLYUcTBCR8qEJFQdA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

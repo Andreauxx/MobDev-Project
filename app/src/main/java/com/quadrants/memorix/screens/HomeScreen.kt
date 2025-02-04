@@ -11,62 +11,107 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.RowScope
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.input.TextFieldValue
-import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import com.google.accompanist.pager.HorizontalPager
+import com.google.accompanist.pager.rememberPagerState
+import com.google.firebase.firestore.FirebaseFirestore
 import com.quadrants.memorix.R
 import com.quadrants.memorix.ui.theme.DarkViolet
-import com.quadrants.memorix.ui.theme.DarkieViolet
 import com.quadrants.memorix.ui.theme.MediumViolet
 import com.quadrants.memorix.ui.theme.WorkSans
+import com.quadrants.memorix.QuizQuestion
+import com.quadrants.memorix.ui.theme.DarkieViolet
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import com.google.accompanist.pager.PagerState
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavController) {
     var showBottomSheet by remember { mutableStateOf(false) }
-    val systemUiController = rememberSystemUiController()
+    val firestore = FirebaseFirestore.getInstance()
 
-    // **Set Status Bar & Navigation Bar Colors**
-    SideEffect {
-        systemUiController.setStatusBarColor(DarkViolet, darkIcons = false)
-        systemUiController.setNavigationBarColor(DarkViolet, darkIcons = false) // ✅ Match the background
+    var questions by remember { mutableStateOf<List<QuizQuestion>>(emptyList()) }
+    var streak by remember { mutableStateOf(0) }
+
+    // Fetch Questions from Firestore
+    LaunchedEffect(Unit) {
+        firestore.collection("quiz_questions")
+            .get()
+            .addOnSuccessListener { result ->
+                questions = result.documents.mapNotNull { doc ->
+                    doc.toObject(QuizQuestion::class.java)
+                }
+            }
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(DarkViolet)
+        modifier = Modifier.fillMaxSize().background(DarkViolet)
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = 32.dp, bottom = 56.dp), // ✅ Added top padding
+            modifier = Modifier.fillMaxSize().padding(bottom = 56.dp),
             verticalArrangement = Arrangement.Top
         ) {
             SearchBar()
-            QuizQuestionSection()
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "🔥 Streak: $streak",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Yellow,
+                modifier = Modifier.align(Alignment.CenterHorizontally).padding(16.dp)
+            )
+
+            val pagerState = rememberPagerState(initialPage = 0)
+            val coroutineScope = rememberCoroutineScope()
+
+            if (questions.isNotEmpty()) {
+                HorizontalPager(
+                    state = pagerState,
+                    count = questions.size,
+                    modifier = Modifier.weight(1f)
+                ) { page ->
+                    QuizQuestionSection(
+                        quizQuestion = questions[page],
+                        onCorrectAnswer = {
+                            streak++
+                            coroutineScope.launch { moveToNextQuestion(pagerState, page) }
+                        },
+                        onWrongAnswer = {
+                            streak = 0
+                            coroutineScope.launch { moveToNextQuestion(pagerState, page) }
+                        }
+                    )
+                }
+            } else {
+                Text(
+                    text = "Loading questions...",
+                    color = Color.White,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
+            }
         }
 
+        // Bottom Navigation Bar with Modal
         BottomNavBar(
-            navController,
+            navController = navController,
             currentScreen = "home",
             onPlusClick = { showBottomSheet = true },
             modifier = Modifier.align(Alignment.BottomCenter)
         )
 
+        // Modal Bottom Sheet for Plus Button
         if (showBottomSheet) {
             ModalBottomSheet(
-                onDismissRequest = { showBottomSheet = false },
-                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                containerColor = MediumViolet
+                onDismissRequest = { showBottomSheet = false }
             ) {
                 BottomSheetContent { showBottomSheet = false }
             }
@@ -74,30 +119,21 @@ fun HomeScreen(navController: NavController) {
     }
 }
 
-
+// ✅ Improved Search Bar
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchBar() {
-    var searchText by remember { mutableStateOf(TextFieldValue("")) }
+    var searchText by remember { mutableStateOf("") }
 
     TextField(
         value = searchText,
         onValueChange = { searchText = it },
-        placeholder = {
-            Text(
-                "Search flashcards, quizzes, questions...",
-                color = Color.White.copy(alpha = 0.7f),
-                fontSize = 14.sp,
-                fontFamily = WorkSans
-            )
-        },
+        placeholder = { Text("Search flashcards, quizzes, questions...", color = Color.White.copy(alpha = 0.7f)) },
         leadingIcon = {
             Icon(
                 painter = painterResource(id = R.drawable.ic_search),
                 contentDescription = "Search",
-                tint = Color.White,
-                modifier = Modifier.size(14.dp)
-
+                tint = Color.White
             )
         },
         trailingIcon = {
@@ -107,132 +143,107 @@ fun SearchBar() {
                 tint = Color.White
             )
         },
-        textStyle = TextStyle(color = Color.White), // ✅ Corrected Here!
         singleLine = true,
-        colors = TextFieldDefaults.textFieldColors(
-            containerColor = MediumViolet,
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent
-        ),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-            .clip(RoundedCornerShape(25.dp))
+        colors = TextFieldDefaults.textFieldColors(containerColor = DarkieViolet),
+        modifier = Modifier.fillMaxWidth().padding(16.dp).clip(RoundedCornerShape(25.dp))
     )
-
 }
+
+// ✅ Improved Quiz Question UI
 @Composable
-fun QuizQuestionSection() {
+fun QuizQuestionSection(quizQuestion: QuizQuestion, onCorrectAnswer: () -> Unit, onWrongAnswer: () -> Unit) {
+    var selectedAnswer by remember { mutableStateOf<String?>(null) }
+    var correctAnswerRevealed by remember { mutableStateOf(false) }
+
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "Which of the following is used to store key-value pairs in Python?",
-            fontSize = 22.sp,
+            text = quizQuestion.question,
+            fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             color = Color.White,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(vertical = 16.dp)
+            modifier = Modifier.padding(bottom = 24.dp)
         )
 
-        // Answer Buttons in 2x2 Grid
-        Column {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                AnswerButton(text = "List", color = Color.Red, modifier = Modifier.weight(1f)) {}
-                AnswerButton(text = "Dictionary", color = Color.Green, modifier = Modifier.weight(1f)) {} // Correct answer
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                AnswerButton(text = "Tuple", color = Color(0xFF673AB7), modifier = Modifier.weight(1f)) {} // Purple
-                AnswerButton(text = "Set", color = Color.Yellow, modifier = Modifier.weight(1f)) {}
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            quizQuestion.answers.chunked(2).forEach { rowAnswers ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    rowAnswers.forEach { answer ->
+                        val isCorrect = answer == quizQuestion.correctAnswer
+                        val backgroundColor = when {
+                            correctAnswerRevealed && isCorrect -> Color.Green
+                            selectedAnswer == answer && !isCorrect -> Color.Red
+                            else -> Color.Gray
+                        }
+
+                        AnswerButton(text = answer, color = backgroundColor) {
+                            if (selectedAnswer == null) {
+                                selectedAnswer = answer
+                                correctAnswerRevealed = true
+
+                                if (isCorrect) onCorrectAnswer() else onWrongAnswer()
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 }
 
+// ✅ Function to Move to Next Question
+suspend fun moveToNextQuestion(pagerState: PagerState, currentPage: Int) {
+    delay(1000)
+    if (currentPage < pagerState.pageCount - 1) {
+        pagerState.animateScrollToPage(currentPage + 1)
+    }
+}
+
+// ✅ Styled Answer Button
 @Composable
-fun AnswerButton(text: String, color: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun AnswerButton(text: String, color: Color, onClick: () -> Unit) {
     Button(
         onClick = onClick,
-        modifier = modifier
-            .padding(8.dp)
-            .height(125.dp), // Fixed height for uniformity
+        modifier = Modifier.padding(8.dp).size(150.dp, 80.dp),
         colors = ButtonDefaults.buttonColors(containerColor = color),
         shape = RoundedCornerShape(12.dp)
     ) {
-        Text(
-            text = text,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.White
-        )
+        Text(text = text, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
     }
 }
 
-@Composable
 
-fun BottomNavBar(navController: NavController, currentScreen: String, onPlusClick: (() -> Unit)? = null, modifier: Modifier = Modifier) {
+// Bottom Navigation Bar
+@Composable
+fun BottomNavBar(navController: NavController, currentScreen: String, onPlusClick: () -> Unit, modifier: Modifier = Modifier) {
     BottomAppBar(
         modifier = modifier.fillMaxWidth(),
-        containerColor = DarkieViolet,
-        tonalElevation = 8.dp
+        containerColor = DarkieViolet
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            BottomNavItem(
-                iconId = R.drawable.ic_home,
-                label = "Home",
-                isSelected = currentScreen == "home"
-            ) { navController.navigate("home") }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
+            BottomNavItem(R.drawable.ic_home, "Home", currentScreen == "home") { navController.navigate("home") }
+            BottomNavItem(R.drawable.ic_folder, "Library", currentScreen == "library") { navController.navigate("folders") }
 
-            BottomNavItem(
-                iconId = R.drawable.ic_folder,
-                label = "Library",
-                isSelected = currentScreen == "library"
-            ) { navController.navigate("folders") }
-
-            if (onPlusClick != null) {
-                Column(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clickable { onPlusClick() },
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_add),
-                        contentDescription = "Add",
-                        tint = Color.White,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
+            // Plus Button for Modal
+            IconButton(onClick = onPlusClick) {
+                Icon(painterResource(id = R.drawable.ic_add), contentDescription = "Add", tint = Color.White)
             }
 
-            BottomNavItem(
-                iconId = R.drawable.ic_barchart,
-                label = "Stats",
-                isSelected = currentScreen == "stats"
-            ) { navController.navigate("stats") }
-
-            BottomNavItem(
-                iconId = R.drawable.ic_profile,
-                label = "Profile",
-                isSelected = currentScreen == "profile"
-            ) { navController.navigate("profile") }
+            BottomNavItem(R.drawable.ic_barchart, "Stats", currentScreen == "stats") { navController.navigate("stats") }
+            BottomNavItem(R.drawable.ic_profile, "Profile", currentScreen == "profile") { navController.navigate("profile") }
         }
     }
 }
-
 
 @Composable
 fun BottomNavItem(iconId: Int, label: String, isSelected: Boolean, onClick: () -> Unit) {

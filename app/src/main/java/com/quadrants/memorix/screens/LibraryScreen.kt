@@ -28,7 +28,7 @@ data class Folder(
     val name: String,
     val itemsCount: Int,
     val lastModified: String,
-    val category: String // Add category field
+    val category: String
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,16 +53,11 @@ fun LibraryScreen(navController: NavController) {
         Folder("Software Engineering", 8, "Updated 2 weeks ago", "Folders")
     )
 
-    var selectedCategory by remember { mutableStateOf("Flashcard Sets") }
-    val categories = listOf("Flashcard Sets", "Study Guides", "Classes", "Folders")
-
-    var selectedSort by remember { mutableStateOf("All") }
-    val sortOptions = listOf("All", "Recently Updated", "Most Items")
+    var selectedCategory by remember { mutableStateOf("All") } // ✅ Default to "All"
+    val categories = listOf("All", "Flashcard Sets", "Study Guides", "Classes", "Folders") // ✅ Include "All"
 
     // **Filter Folders Based on Selected Category**
-    val filteredFolders = folders.filter { folder ->
-        selectedCategory == "All" || folder.category == selectedCategory
-    }
+    val filteredFolders = if (selectedCategory == "All") folders else folders.filter { it.category == selectedCategory }
 
     Scaffold(
         floatingActionButton = {
@@ -77,7 +72,9 @@ fun LibraryScreen(navController: NavController) {
                 )
             }
         },
-        bottomBar = { BottomNavBar(navController, currentScreen = "library") }
+        bottomBar = {
+            BottomNavBar(navController, currentScreen = "library", onPlusClick = { /* TODO: Handle Modal */ })
+        }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -89,7 +86,7 @@ fun LibraryScreen(navController: NavController) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                    .padding(16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -97,8 +94,7 @@ fun LibraryScreen(navController: NavController) {
                     text = "Library",
                     fontSize = 26.sp,
                     fontWeight = FontWeight.Bold,
-                    color = White,
-                    fontFamily = WorkSans
+                    color = White
                 )
                 Icon(
                     painter = painterResource(id = R.drawable.owl_icon),
@@ -108,12 +104,10 @@ fun LibraryScreen(navController: NavController) {
                 )
             }
 
-            // **Scrollable Category Tabs**
+            // **Category Selection Tabs**
             LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(categories) { category ->
                     Text(
@@ -121,17 +115,16 @@ fun LibraryScreen(navController: NavController) {
                         fontSize = 16.sp,
                         fontWeight = if (selectedCategory == category) FontWeight.Bold else FontWeight.Normal,
                         color = if (selectedCategory == category) White else White.copy(alpha = 0.6f),
-                        fontFamily = WorkSans,
                         modifier = Modifier
-                            .clickable { selectedCategory = category } // ✅ Updates the selected category
-                            .padding(vertical = 8.dp)
+                            .clickable { selectedCategory = category }
+                            .padding(8.dp)
                     )
                 }
             }
 
             Divider(color = White.copy(alpha = 0.5f), thickness = 1.dp, modifier = Modifier.padding(horizontal = 16.dp))
 
-            // **Folder Grid View - Displays filtered folders**
+            // **Folder Grid View**
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
                 modifier = Modifier.padding(16.dp),
@@ -146,6 +139,36 @@ fun LibraryScreen(navController: NavController) {
     }
 }
 
+
+// ✅ **Bottom Navigation Bar**
+@Composable
+fun BottomNavBar(navController: NavController, currentScreen: String, onPlusClick: (() -> Unit)? = null) {
+    BottomAppBar(
+        containerColor = DarkieViolet
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceAround,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            BottomNavItem(R.drawable.ic_home, "Home", currentScreen == "home") { navController.navigate("home") }
+            BottomNavItem(R.drawable.ic_folder, "Library", currentScreen == "library") { navController.navigate("library") }
+
+            // Center Plus Button
+            if (onPlusClick != null) {
+                IconButton(onClick = onPlusClick) {
+                    Icon(painterResource(id = R.drawable.ic_add), contentDescription = "Add", tint = Color.White)
+                }
+            }
+
+            BottomNavItem(R.drawable.ic_barchart, "Stats", currentScreen == "stats") { navController.navigate("stats") }
+            BottomNavItem(R.drawable.ic_profile, "Profile", currentScreen == "profile") { navController.navigate("profile") }
+        }
+    }
+}
+
+
+// ✅ **Folder Item**
 @Composable
 fun FolderItem(folder: Folder) {
     Card(
@@ -168,27 +191,9 @@ fun FolderItem(folder: Folder) {
                 modifier = Modifier.size(32.dp)
             )
 
-            Text(
-                text = folder.name,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = White,
-                fontFamily = WorkSans
-            )
-
-            Text(
-                text = "${folder.itemsCount} items",
-                fontSize = 14.sp,
-                color = White.copy(alpha = 0.7f),
-                fontFamily = WorkSans
-            )
-
-            Text(
-                text = folder.lastModified,
-                fontSize = 12.sp,
-                color = White.copy(alpha = 0.5f),
-                fontFamily = WorkSans
-            )
+            Text(text = folder.name, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = White)
+            Text(text = "${folder.itemsCount} items", fontSize = 14.sp, color = White.copy(alpha = 0.7f))
+            Text(text = folder.lastModified, fontSize = 12.sp, color = White.copy(alpha = 0.5f))
         }
     }
 }

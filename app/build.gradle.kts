@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -40,9 +41,19 @@ android {
 }
 
 dependencies {
-    // implementation("com.google.accompanist:@acompanist-pager:0.12.0")
+    //Firebase
+    implementation(platform("com.google.firebase:firebase-bom:33.8.0"))
+    implementation("com.google.firebase:firebase-analytics")
 
-    // ✅ Correct (Use the latest stable version)
+
+    // implementation("com.google.accompanist:@acompanist-pager:0.12.0")
+    implementation("androidx.paging:paging-compose:1.0.0-alpha20")
+    implementation("androidx.compose.foundation:foundation:1.5.4") // Latest Compose Foundation
+    implementation("androidx.compose.ui:ui:1.5.4")
+    implementation("androidx.compose.material3:material3:1.2.0")
+    implementation ("com.google.firebase:firebase-firestore-ktx:24.8.0")
+
+    // ✅ Correct Accompanist dependencies
     implementation("com.google.accompanist:accompanist-pager:0.32.0")
     implementation("com.google.accompanist:accompanist-pager-indicators:0.32.0")
     implementation("androidx.compose.ui:ui-text-google-fonts:1.0.0")
