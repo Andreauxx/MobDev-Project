@@ -16,6 +16,10 @@ import androidx.navigation.NavController
 import com.quadrants.memorix.R
 import com.quadrants.memorix.ui.theme.DarkViolet
 import com.quadrants.memorix.ui.theme.WorkSans
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 
 @Composable
 fun StatsScreen(navController: NavController) {
@@ -31,49 +35,49 @@ fun StatsScreen(navController: NavController) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 16.dp, vertical = 32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .padding(horizontal = 16.dp, vertical = 32.dp)
                 ) {
                     // Profile & Title
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column {
-                            Text(
-                                "Progress",
-                                fontSize = 28.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                            Text(
-                                "Hey, Lodi !",
-                                fontSize = 16.sp,
-                                color = Color.White.copy(alpha = 0.7f)
-                            )
-                        }
-                        Icon(
-                            painter = painterResource(id = R.drawable.owl_icon),
-                            contentDescription = "Profile Icon",
-                            tint = Color.White,
-                            modifier = Modifier.size(32.dp)
+                    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
+                        Text(
+                            text = "Progress",
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "Hey, Lodi !",
+                            fontSize = 16.sp,
+                            color = Color.White.copy(alpha = 0.7f),
+                            modifier = Modifier.padding(bottom = 16.dp)
                         )
                     }
+
+                    // Bar Chart
+                    Text(
+                        text = "Study Progress Chart",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    BarChart()
 
                     Spacer(modifier = Modifier.height(20.dp))
 
                     // Statistics Cards
-                    StatCard(title = "Study Time", value = "4h 20m", iconId = R.drawable.ic_time)
-                    StatCard(title = "Daily Goal", value = "45m", iconId = R.drawable.ic_goal)
-                    StatCard(title = "Items Reviewed", value = "142", iconId = R.drawable.ic_review)
-                    StatCard(title = "🔥 Streak", value = "5 days", iconId = R.drawable.ic_streak)
+                    StatCard("Study Time", "4h 20m", R.drawable.ic_time)
+                    StatCard("Daily Goal", "45m", R.drawable.ic_goal)
+                    StatCard("Items Reviewed", "142", R.drawable.ic_review)
+                    StatCard("🔥 Streak", "5 days", R.drawable.ic_streak)
                 }
             }
         }
     )
 }
 
-// ✅ Component for Stats Cards
+// ✅ Placeholder for StatCard Function
 @Composable
 fun StatCard(title: String, value: String, iconId: Int) {
     Card(
@@ -81,7 +85,10 @@ fun StatCard(title: String, value: String, iconId: Int) {
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF2D1B5C))
     ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Icon(
                 painter = painterResource(id = iconId),
                 contentDescription = title,
@@ -93,6 +100,25 @@ fun StatCard(title: String, value: String, iconId: Int) {
                 Text(text = title, fontSize = 16.sp, color = Color.White.copy(alpha = 0.7f))
                 Text(text = value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
             }
+        }
+    }
+}
+
+// ✅ Placeholder for BarChart Function
+@Composable
+fun BarChart() {
+    val studyData = listOf(4f, 5.5f, 3f, 6f, 4.5f) // Sample data
+    Canvas(modifier = Modifier.fillMaxWidth().height(200.dp)) {
+        val barWidth = size.width / (studyData.size * 2)
+        val maxData = studyData.maxOrNull() ?: 1f
+        val scaleFactor = size.height / maxData
+
+        studyData.forEachIndexed { index, value ->
+            drawRect(
+                color = Color.Cyan,
+                topLeft = Offset(index * 2 * barWidth + barWidth / 2, size.height - (value * scaleFactor)),
+                size = Size(barWidth, value * scaleFactor)
+            )
         }
     }
 }
