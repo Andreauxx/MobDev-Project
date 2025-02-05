@@ -38,7 +38,7 @@ fun AppNavigation() {
         composable("home") { HomeScreen(navController) }
         composable("folders") { LibraryScreen(navController) }
         composable("stats") { StatsScreen(navController) }
-        //composable("profile") { ProfileScreen(navController) }
+        composable("profile") { ProfileScreen(navController) }
         // **NEW: Category Content Screen**
         composable("category_content/{category}") { backStackEntry ->
             val category = backStackEntry.arguments?.getString("category") ?: "Unknown"
