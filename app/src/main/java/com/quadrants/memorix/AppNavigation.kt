@@ -37,7 +37,7 @@ fun AppNavigation() {
         // Main Screens
         composable("home") { HomeScreen(navController) }
         composable("folders") { LibraryScreen(navController) }
-        //composable("stats") { StatsScreen(navController) }
+        composable("stats") { StatsScreen(navController) }
         //composable("profile") { ProfileScreen(navController) }
         // **NEW: Category Content Screen**
         composable("category_content/{category}") { backStackEntry ->
