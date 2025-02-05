@@ -162,7 +162,7 @@ fun SearchBar() {
 // ✅ Improved Quiz Question UI
 @Composable
 fun QuizQuestionSection(quizQuestion: QuizQuestion, onCorrectAnswer: () -> Unit, onWrongAnswer: () -> Unit) {
-    var selectedAnswer by remember { mutableStateOf<String?>(null) }
+    var selectedAnswerIndex by remember { mutableStateOf<Int?>(null) }
     var correctAnswerRevealed by remember { mutableStateOf(false) }
 
     Column(
@@ -183,22 +183,23 @@ fun QuizQuestionSection(quizQuestion: QuizQuestion, onCorrectAnswer: () -> Unit,
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            quizQuestion.answers.chunked(2).forEach { rowAnswers ->
+            quizQuestion.answers.chunked(2).forEach { rowAnswers -> // ✅ Splits into 2 answers per row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    rowAnswers.forEach { answer ->
-                        val isCorrect = answer == quizQuestion.correctAnswer
+                    rowAnswers.forEachIndexed { _, answer ->
+                        val index = quizQuestion.answers.indexOf(answer) // ✅ Get actual index
+                        val isCorrect = index == quizQuestion.correctAnswerIndex
                         val backgroundColor = when {
                             correctAnswerRevealed && isCorrect -> Color.Green
-                            selectedAnswer == answer && !isCorrect -> Color.Red
+                            selectedAnswerIndex == index && !isCorrect -> Color.Red
                             else -> Color.Gray
                         }
 
                         AnswerButton(text = answer, color = backgroundColor) {
-                            if (selectedAnswer == null) {
-                                selectedAnswer = answer
+                            if (selectedAnswerIndex == null) {
+                                selectedAnswerIndex = index // ✅ Store selected index
                                 correctAnswerRevealed = true
 
                                 if (isCorrect) onCorrectAnswer() else onWrongAnswer()
@@ -206,6 +207,7 @@ fun QuizQuestionSection(quizQuestion: QuizQuestion, onCorrectAnswer: () -> Unit,
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(12.dp)) // ✅ Space between rows
             }
         }
     }

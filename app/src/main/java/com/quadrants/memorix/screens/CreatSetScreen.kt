@@ -25,7 +25,7 @@ import androidx.compose.ui.text.style.TextAlign
 @Composable
 fun CreateSetScreen(navController: NavController) {
     var title by remember { mutableStateOf(TextFieldValue("")) }
-    var terms by remember { mutableStateOf(mutableListOf<Pair<String, String>>()) }
+    var terms = remember { mutableStateListOf<Pair<String, String>>() }
     var newTerm by remember { mutableStateOf(TextFieldValue("")) }
     var newDefinition by remember { mutableStateOf(TextFieldValue("")) }
 

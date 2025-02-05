@@ -18,13 +18,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.google.firebase.firestore.FirebaseFirestore
 import com.quadrants.memorix.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateQuizScreen(navController: NavController) {
+    val firestore = FirebaseFirestore.getInstance() // ✅ Initialize Firestore
+
     var quizTitle by remember { mutableStateOf(TextFieldValue("")) }
-    var questions by remember { mutableStateOf(mutableListOf<QuizQuestion>()) }
     var questionTimeLimit by remember { mutableStateOf(TextFieldValue("30")) }
     var newQuestion by remember { mutableStateOf(TextFieldValue("")) }
     var answerOptions by remember { mutableStateOf(mutableListOf("", "", "", "")) }
@@ -48,38 +50,10 @@ fun CreateQuizScreen(navController: NavController) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = White)
                 }
             },
-            actions = {
-                IconButton(onClick = { /* Help/Info */ }) {
-                    Icon(Icons.Default.Info, contentDescription = "Info", tint = White)
-                }
-            },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = MediumViolet)
         )
 
         Spacer(modifier = Modifier.height(24.dp))
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
-
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Time Limit (seconds)", color = White, fontSize = 16.sp)
-        }
-        TextField(
-            modifier = Modifier.fillMaxWidth().height(60.dp).clip(RoundedCornerShape(12.dp)),
-            value = questionTimeLimit,
-            onValueChange = { questionTimeLimit = it },
-            label = { Text("Time Limit", color = White) },
-            singleLine = true,
-            colors = TextFieldDefaults.textFieldColors(
-                containerColor = DarkMediumViolet,
-                focusedTextColor = White,
-                unfocusedTextColor = White,
-                cursorColor = White,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent
-            )
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
 
         TextField(
             modifier = Modifier.fillMaxWidth().height(60.dp).clip(RoundedCornerShape(12.dp)),
@@ -92,9 +66,7 @@ fun CreateQuizScreen(navController: NavController) {
                 containerColor = DarkMediumViolet,
                 focusedTextColor = White,
                 unfocusedTextColor = White,
-                cursorColor = White,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent
+                cursorColor = White
             )
         )
 
@@ -113,9 +85,7 @@ fun CreateQuizScreen(navController: NavController) {
                 containerColor = DarkMediumViolet,
                 focusedTextColor = White,
                 unfocusedTextColor = White,
-                cursorColor = White,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent
+                cursorColor = White
             )
         )
 
@@ -123,40 +93,73 @@ fun CreateQuizScreen(navController: NavController) {
 
         answerOptions.forEachIndexed { index, option ->
             var optionText by remember { mutableStateOf(TextFieldValue(option)) }
-            TextField(
-                modifier = Modifier.fillMaxWidth().height(60.dp).clip(RoundedCornerShape(12.dp)),
-                value = optionText,
-                onValueChange = { optionText = it; answerOptions[index] = it.text },
-                label = { Text("Option ${index + 1}", color = White) },
-                singleLine = true,
-                colors = TextFieldDefaults.textFieldColors(
-                    containerColor = DarkMediumViolet,
-                    focusedTextColor = White,
-                    unfocusedTextColor = White,
-                    cursorColor = White,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // ✅ Input field for each answer choice
+                TextField(
+                    modifier = Modifier.weight(1f).height(60.dp).clip(RoundedCornerShape(12.dp)),
+                    value = optionText,
+                    onValueChange = {
+                        optionText = it
+                        answerOptions[index] = it.text // ✅ Ensures updates persist
+                    },
+                    label = { Text("Option ${index + 1}", color = White) },
+                    singleLine = true,
+                    colors = TextFieldDefaults.textFieldColors(
+                        containerColor = DarkMediumViolet,
+                        focusedTextColor = White,
+                        unfocusedTextColor = White,
+                        cursorColor = White
+                    )
                 )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // ✅ RadioButton correctly updates correctAnswerIndex
+                RadioButton(
+                    selected = index == correctAnswerIndex,
+                    onClick = { correctAnswerIndex = index } // ✅ Fix: Properly updates selection
+                )
+            }
+
+            Text(
+                text = if (index == correctAnswerIndex) "✔ Correct Answer" else "",
+                color = if (index == correctAnswerIndex) Color.Green else White,
+                fontSize = 14.sp
             )
-            RadioButton(
-                selected = index == correctAnswerIndex,
-                onClick = { correctAnswerIndex = index }
-            )
-            Text("Correct Answer", color = White)
+
             Spacer(modifier = Modifier.height(12.dp))
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
 
         Button(
             onClick = {
                 if (newQuestion.text.isNotEmpty() && answerOptions.all { it.isNotEmpty() }) {
                     val timeLimit = questionTimeLimit.text.toIntOrNull() ?: 30
-                    questions = questions.toMutableList().apply {
-                        add(QuizQuestion(newQuestion.text, answerOptions.toList(), correctAnswerIndex, timeLimit))
-                    }
+
+                    val quizData = hashMapOf(
+                        "question" to newQuestion.text,
+                        "answers" to answerOptions.toList(),
+                        "correctAnswerIndex" to correctAnswerIndex, // ✅ Ensure correct index is saved
+                        "timeLimit" to timeLimit
+                    )
+
+                    firestore.collection("quiz_questions")
+                        .add(quizData)
+                        .addOnSuccessListener {
+                            println("✅ Question added successfully!")
+                        }
+                        .addOnFailureListener { e ->
+                            println("❌ Error adding question: ${e.message}")
+                        }
+
+                    // ✅ Reset form fields
                     newQuestion = TextFieldValue("")
                     answerOptions = mutableListOf("", "", "", "")
+                    correctAnswerIndex = 0 // ✅ Reset selection after saving
                     questionTimeLimit = TextFieldValue("30")
                 }
             },
@@ -168,13 +171,6 @@ fun CreateQuizScreen(navController: NavController) {
             Spacer(modifier = Modifier.width(8.dp))
             Text("Add Question", color = White)
         }
+
     }
 }
-
-
-data class QuizQuestion(
-    val question: String,
-    val options: List<String>,
-    val correctAnswerIndex: Int,
-    val timeLimit: Int // Time limit in seconds
-)
