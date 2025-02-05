@@ -39,7 +39,7 @@ fun LibraryScreen(navController: NavController) {
     // **Set Status Bar & Navigation Bar Colors**
     SideEffect {
         systemUiController.setStatusBarColor(DarkViolet, darkIcons = false)
-        systemUiController.setNavigationBarColor(DarkieViolet, darkIcons = false)
+        systemUiController.setNavigationBarColor(DarkViolet, darkIcons = false)
     }
 
     val folders = listOf(
@@ -106,9 +106,12 @@ fun LibraryScreen(navController: NavController) {
 
             // **Category Selection Tabs**
             LazyRow(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+            )
+            {
                 items(categories) { category ->
                     Text(
                         text = category,
