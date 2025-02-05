@@ -11,7 +11,7 @@ import androidx.navigation.compose.rememberNavController
 import com.quadrants.memorix.screens.*
 
 @Composable
-fun AppNavigation() {
+fun AppNavigation(activity: MainActivity) {
     val navController: NavHostController = rememberNavController()
     val context = LocalContext.current
     val sharedPreferences = remember { context.getSharedPreferences("MemorixPrefs", Context.MODE_PRIVATE) }
@@ -35,7 +35,7 @@ fun AppNavigation() {
         }
 
         // Main Screens
-        composable("home") { HomeScreen(navController) }
+        composable("home") { HomeScreen(navController, activity) }  // Pass activity here
         composable("folders") { LibraryScreen(navController) }
         composable("stats") { StatsScreen(navController) }
         composable("profile") { ProfileScreen(navController) }
@@ -44,5 +44,8 @@ fun AppNavigation() {
             val category = backStackEntry.arguments?.getString("category") ?: "Unknown"
 
         }
+
+        composable("flashcard"){CreateSetScreen(navController)}
+        composable("quiz"){CreateQuizScreen(navController)}
     }
 }

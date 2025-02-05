@@ -13,6 +13,7 @@ val Pink40 = Color(0xFF7D5260)
 // 60% - Primary Background
 val DarkViolet = Color(0xFF1A002D) // Deep Violet
 val DarkieViolet = Color(0x432D0541) // Slightly lighter Violet
+val DarkMediumViolet = Color(0x7A4F0E7E) // Slightly lighter Violet
 // 30% - Secondary (Buttons, UI Elements)
 val MediumViolet = Color(0xFF9336B6) // Slightly lighter Violet
 

@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.ui.tooling.preview.Preview
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.quadrants.memorix.OnBoardingData
@@ -34,22 +35,20 @@ import com.quadrants.memorix.ui.theme.DarkViolet
 import com.quadrants.memorix.ui.theme.MediumViolet
 import com.quadrants.memorix.ui.theme.GoldenYellow
 import com.quadrants.memorix.ui.theme.WorkSans
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun OnboardScreen(
-
-    onFinish: () -> Unit // Callback for navigation
-
-)
-{
+    onFinish: () -> Unit
+) {
     val systemUiController = rememberSystemUiController()
 
-    // **Set Status Bar & Navigation Bar Colors**
     SideEffect {
         systemUiController.setStatusBarColor(DarkViolet, darkIcons = false)
-        systemUiController.setNavigationBarColor(DarkViolet, darkIcons = false) // ✅ Match the background
+        systemUiController.setNavigationBarColor(DarkViolet, darkIcons = false)
     }
+
     val items = listOf(
         OnBoardingData(
             R.raw.scrolling,
@@ -76,7 +75,7 @@ fun OnboardScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(DarkViolet), // Apply primary background color
+            .background(DarkViolet),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         HorizontalPager(
@@ -88,19 +87,19 @@ fun OnboardScreen(
             }
         }
 
-        // Page Indicator
         PageIndicator(size = items.size, currentPage = pagerState.currentPage)
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Bottom Section with Navigation Controls
         BottomSection(
             currentPage = pagerState.currentPage,
             pageCount = items.size,
+            pagerState = pagerState, // Pass the pager state
             onFinish = onFinish
         )
     }
 }
+
 
 @Composable
 fun OnBoardingPage(data: OnBoardingData) {
@@ -167,7 +166,9 @@ fun Indicator(isSelected: Boolean) {
 }
 
 @Composable
-fun BottomSection(currentPage: Int, pageCount: Int, onFinish: () -> Unit) {
+fun BottomSection(currentPage: Int, pageCount: Int, pagerState: PagerState, onFinish: () -> Unit) {
+    val coroutineScope = rememberCoroutineScope()
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -184,12 +185,39 @@ fun BottomSection(currentPage: Int, pageCount: Int, onFinish: () -> Unit) {
                     text = "Get Started",
                     modifier = Modifier
                         .padding(vertical = 8.dp, horizontal = 40.dp),
-                    color = GoldenYellow// Button text
+                    color = GoldenYellow // Button text
                 )
             }
         } else {
-            SkipNextButton("Skip")
-            SkipNextButton("Next")
+            TextButton(onClick = {
+                coroutineScope.launch {
+                    pagerState.scrollToPage(pageCount - 1) // Jump to the last page
+                }
+            }) {
+                Text(
+                    text = "Skip",
+                    color = GoldenYellow,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Normal,
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                    fontFamily = WorkSans
+                )
+            }
+
+            TextButton(onClick = {
+                coroutineScope.launch {
+                    pagerState.animateScrollToPage(currentPage + 1) // Move to next page
+                }
+            }) {
+                Text(
+                    text = "Next",
+                    color = GoldenYellow,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Normal,
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                    fontFamily = WorkSans
+                )
+            }
         }
     }
 }
