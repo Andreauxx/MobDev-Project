@@ -135,7 +135,7 @@ fun LibraryScreen(navController: NavController) {
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(filteredFolders) { folder ->
-                    FolderItem(folder)
+                    FolderItem(folder, navController)
                 }
             }
         }
@@ -173,14 +173,16 @@ fun BottomNavBar(navController: NavController, currentScreen: String, onPlusClic
 
 // ✅ **Folder Item**
 @Composable
-fun FolderItem(folder: Folder) {
+fun FolderItem(folder: Folder, navController: NavController) {
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = DarkieViolet),
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
-            .clickable { /* TODO: Open folder */ }
+            .clickable {
+                navController.navigate("folderDetail/${folder.name}/${folder.category}")
+            }
             .clip(RoundedCornerShape(12.dp))
     ) {
         Column(
@@ -200,3 +202,4 @@ fun FolderItem(folder: Folder) {
         }
     }
 }
+
