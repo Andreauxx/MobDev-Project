@@ -3,6 +3,8 @@ package com.quadrants.memorix.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,12 +31,15 @@ import com.quadrants.memorix.QuizQuestion
 import com.quadrants.memorix.ui.theme.DarkieViolet
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import com.google.accompanist.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.pager.VerticalPager
+import com.quadrants.memorix.MainActivity
+import com.quadrants.memorix.ui.theme.DarkMediumViolet
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(navController: NavController) {
+fun HomeScreen(navController: NavController, activity: MainActivity) {
     var showBottomSheet by remember { mutableStateOf(false) }
     val firestore = FirebaseFirestore.getInstance()
 
@@ -67,40 +72,36 @@ fun HomeScreen(navController: NavController) {
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.Yellow,
+                fontFamily = WorkSans,
                 modifier = Modifier.align(Alignment.CenterHorizontally).padding(16.dp)
             )
 
-            val pagerState = rememberPagerState(initialPage = 0)
+            val pagerState = rememberPagerState { questions.size }
             val coroutineScope = rememberCoroutineScope()
 
-            if (questions.isNotEmpty()) {
-                HorizontalPager(
-                    state = pagerState,
-                    count = questions.size,
-                    modifier = Modifier.weight(1f)
-                ) { page ->
-                    QuizQuestionSection(
-                        quizQuestion = questions[page],
-                        onCorrectAnswer = {
-                            streak++
-                            coroutineScope.launch { moveToNextQuestion(pagerState, page) }
-                        },
-                        onWrongAnswer = {
-                            streak = 0
-                            coroutineScope.launch { moveToNextQuestion(pagerState, page) }
-                        }
-                    )
-                }
-            } else {
-                Text(
-                    text = "Loading questions...",
-                    color = Color.White,
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
+            VerticalPager(
+                state = pagerState,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(top = 16.dp) // ✅ Adds padding between search bar & quiz content
+            ) { page ->
+                QuizQuestionSection(
+                    quizQuestion = questions[page],
+                    onCorrectAnswer = {
+                        streak++
+                        coroutineScope.launch { moveToNextQuestion(pagerState, page, questions.size) } // ✅ Fix: Pass questions.size
+                    },
+                    onWrongAnswer = {
+                        streak = 0
+                        coroutineScope.launch { moveToNextQuestion(pagerState, page, questions.size) } // ✅ Fix: Pass questions.size
+                    }
                 )
             }
+
         }
 
         // Bottom Navigation Bar with Modal
+
         BottomNavBar(
             navController = navController,
             currentScreen = "home",
@@ -108,12 +109,11 @@ fun HomeScreen(navController: NavController) {
             modifier = Modifier.align(Alignment.BottomCenter)
         )
 
-        // Modal Bottom Sheet for Plus Button
         if (showBottomSheet) {
             ModalBottomSheet(
                 onDismissRequest = { showBottomSheet = false }
             ) {
-                BottomSheetContent { showBottomSheet = false }
+                BottomSheetContent(navController, activity) { showBottomSheet = false }
             }
         }
     }
@@ -126,6 +126,7 @@ fun SearchBar() {
     var searchText by remember { mutableStateOf("") }
 
     TextField(
+
         value = searchText,
         onValueChange = { searchText = it },
         placeholder = { Text("Search flashcards, quizzes, questions...", color = Color.White.copy(alpha = 0.7f)) },
@@ -133,19 +134,28 @@ fun SearchBar() {
             Icon(
                 painter = painterResource(id = R.drawable.ic_search),
                 contentDescription = "Search",
-                tint = Color.White
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
             )
         },
         trailingIcon = {
             Icon(
                 painter = painterResource(id = R.drawable.owl_icon),
                 contentDescription = "Logo",
-                tint = Color.White
+                tint = Color.White,
+                modifier = Modifier.size(42.dp)
             )
         },
         singleLine = true,
-        colors = TextFieldDefaults.textFieldColors(containerColor = DarkieViolet),
-        modifier = Modifier.fillMaxWidth().padding(16.dp).clip(RoundedCornerShape(25.dp))
+        colors = TextFieldDefaults.textFieldColors(
+            containerColor = DarkMediumViolet,
+            focusedIndicatorColor = Color.Transparent, // ✅ Removes white line
+            unfocusedIndicatorColor = Color.Transparent // ✅ Removes white line
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 36.dp) // ✅ Extra top spacing
+            .clip(RoundedCornerShape(25.dp))
     )
 }
 
@@ -202,12 +212,13 @@ fun QuizQuestionSection(quizQuestion: QuizQuestion, onCorrectAnswer: () -> Unit,
 }
 
 // ✅ Function to Move to Next Question
-suspend fun moveToNextQuestion(pagerState: PagerState, currentPage: Int) {
+suspend fun moveToNextQuestion(pagerState: PagerState, currentPage: Int, totalQuestions: Int) {
     delay(1000)
-    if (currentPage < pagerState.pageCount - 1) {
+    if (currentPage < totalQuestions - 1) { // ✅ Fix: Use totalQuestions
         pagerState.animateScrollToPage(currentPage + 1)
     }
 }
+
 
 // ✅ Styled Answer Button
 @Composable
@@ -264,7 +275,7 @@ fun BottomNavItem(iconId: Int, label: String, isSelected: Boolean, onClick: () -
 }
 
 @Composable
-fun BottomSheetContent(onDismiss: () -> Unit) {
+fun BottomSheetContent(navController: NavController, activity: MainActivity, onDismiss: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -282,10 +293,38 @@ fun BottomSheetContent(onDismiss: () -> Unit) {
         Spacer(modifier = Modifier.height(16.dp))
 
         // ✅ Action Buttons in Bottom Sheet
-        BottomSheetItem(iconId = R.drawable.ic_flashcard, text = "Flashcard Set", onClick = onDismiss)
-        BottomSheetItem(iconId = R.drawable.ic_quiz, text = "Create Quiz", onClick = onDismiss)
-        BottomSheetItem(iconId = R.drawable.ic_class, text = "Create a Class", onClick = onDismiss)
-        BottomSheetItem(iconId = R.drawable.ic_upload, text = "Upload Image/PDF", onClick = onDismiss)
+        BottomSheetItem(
+            iconId = R.drawable.ic_flashcard,
+            text = "Flashcard Set",
+            onClick = {
+                navController.navigate("flashcard")
+                onDismiss()
+            }
+        )
+        BottomSheetItem(
+            iconId = R.drawable.ic_quiz,
+            text = "Create Quiz",
+            onClick = {
+                navController.navigate("quiz")
+                onDismiss()
+            }
+        )
+        BottomSheetItem(
+            iconId = R.drawable.ic_class,
+            text = "Create a Class",
+            onClick = {
+                navController.navigate("classScreen")
+                onDismiss()
+            }
+        )
+        BottomSheetItem(
+            iconId = R.drawable.ic_upload,
+            text = "Upload Image/PDF",
+            onClick = {
+                activity.openFileOrCamera() // Call function from MainActivity
+                onDismiss()
+            }
+        )
     }
 }
 

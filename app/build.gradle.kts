@@ -41,11 +41,15 @@ android {
 }
 
 dependencies {
+
+    implementation ("androidx.compose.material:material-icons-extended:1.5.0")
+
     //Firebase
     implementation(platform("com.google.firebase:firebase-bom:33.8.0"))
     implementation("com.google.firebase:firebase-analytics")
 
-
+    implementation ("com.google.firebase:firebase-auth:22.3.1")
+    implementation ("com.google.android.gms:play-services-auth:20.7.0")
     // implementation("com.google.accompanist:@acompanist-pager:0.12.0")
     implementation("androidx.paging:paging-compose:1.0.0-alpha20")
     implementation("androidx.compose.foundation:foundation:1.5.4") // Latest Compose Foundation
@@ -74,6 +78,9 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.navigation.runtime.ktx)
     implementation ("com.google.accompanist:accompanist-systemuicontroller:0.30.1")
+    implementation(libs.androidx.appcompat)
+    implementation(libs.firebase.auth.ktx)
+    implementation(libs.play.services.auth)
 
     // ✅ Testing Dependencies (Already correct)
     testImplementation(libs.junit)
