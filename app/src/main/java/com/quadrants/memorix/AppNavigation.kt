@@ -47,5 +47,13 @@ fun AppNavigation(activity: MainActivity) {
 
         composable("flashcard"){CreateSetScreen(navController)}
         composable("quiz"){CreateQuizScreen(navController)}
+
+        // folder clicks
+        composable("folderDetail/{folderName}/{category}") { backStackEntry ->
+            val folderName = backStackEntry.arguments?.getString("folderName") ?: "Unknown"
+            val category = backStackEntry.arguments?.getString("category") ?: "Unknown"
+            FolderDetailScreen(navController, folderName, category)
+        }
+
     }
 }
