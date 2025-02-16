@@ -1,5 +1,9 @@
 package com.quadrants.memorix.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -33,7 +37,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.pager.VerticalPager
+import androidx.compose.ui.window.Dialog
 import com.quadrants.memorix.MainActivity
+import com.quadrants.memorix.ui.theme.Correct
 import com.quadrants.memorix.ui.theme.DarkMediumViolet
 
 
@@ -52,11 +58,15 @@ fun HomeScreen(navController: NavController, activity: MainActivity) {
             .get()
             .addOnSuccessListener { result ->
                 questions = result.documents.mapNotNull { doc ->
-                    doc.toObject(QuizQuestion::class.java)
+                    QuizQuestion(
+                        question = doc.getString("question") ?: "",
+                        answers = doc.get("answers") as? List<String> ?: emptyList(),
+                        correctAnswerIndex = doc.getLong("correctAnswerIndex")?.toInt() ?: 0,
+                        explanation = doc.getString("explanation") ?: "" // ✅ Fetch explanation
+                    )
                 }
             }
     }
-
     Box(
         modifier = Modifier.fillMaxSize().background(DarkViolet)
     ) {
@@ -161,53 +171,114 @@ fun SearchBar() {
 
 // ✅ Improved Quiz Question UI
 @Composable
-fun QuizQuestionSection(quizQuestion: QuizQuestion, onCorrectAnswer: () -> Unit, onWrongAnswer: () -> Unit) {
+fun QuizQuestionSection(
+    quizQuestion: QuizQuestion,
+    onCorrectAnswer: () -> Unit,
+    onWrongAnswer: () -> Unit
+) {
     var selectedAnswerIndex by remember { mutableStateOf<Int?>(null) }
     var correctAnswerRevealed by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
-    Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = quizQuestion.question,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.White,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(bottom = 24.dp)
-        )
-
+    Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier.align(Alignment.Center),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            quizQuestion.answers.chunked(2).forEach { rowAnswers -> // ✅ Splits into 2 answers per row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    rowAnswers.forEachIndexed { _, answer ->
-                        val index = quizQuestion.answers.indexOf(answer) // ✅ Get actual index
-                        val isCorrect = index == quizQuestion.correctAnswerIndex
-                        val backgroundColor = when {
-                            correctAnswerRevealed && isCorrect -> Color.Green
-                            selectedAnswerIndex == index && !isCorrect -> Color.Red
-                            else -> Color.Gray
-                        }
+            // ✅ No background wrapping the question
+            Text(
+                text = quizQuestion.question,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(bottom = 24.dp)
+            )
 
-                        AnswerButton(text = answer, color = backgroundColor) {
-                            if (selectedAnswerIndex == null) {
-                                selectedAnswerIndex = index // ✅ Store selected index
-                                correctAnswerRevealed = true
+            Spacer(modifier = Modifier.height(16.dp))
 
-                                if (isCorrect) onCorrectAnswer() else onWrongAnswer()
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                quizQuestion.answers.chunked(2).forEach { rowAnswers ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        rowAnswers.forEach { answer ->
+                            val index = quizQuestion.answers.indexOf(answer)
+                            val isCorrect = index == quizQuestion.correctAnswerIndex
+                            val backgroundColor = when {
+                                selectedAnswerIndex == index && isCorrect -> Correct // ✅ Ensure correct answer turns green
+                                selectedAnswerIndex == index && !isCorrect -> Color.Red
+                                correctAnswerRevealed && isCorrect -> Correct // ✅ Keep correct answer green even if no explanation
+                                else -> Color(0xFF4A326F) // ✅ Default button color
+                            }
+
+                            AnswerButton(text = answer, color = backgroundColor) {
+                                if (selectedAnswerIndex == null) {
+                                    selectedAnswerIndex = index
+
+                                    // ✅ Ensure correct answer turns green even if no explanation
+                                    correctAnswerRevealed = true
+
+                                    if (quizQuestion.explanation.isNotEmpty()) {
+                                        coroutineScope.launch {
+                                            delay(3000) // Show explanation for 3 seconds
+                                            if (isCorrect) onCorrectAnswer() else onWrongAnswer()
+                                        }
+                                    } else {
+                                        // ✅ No explanation, move immediately to next question
+                                        coroutineScope.launch {
+                                            delay(1000) // Short delay to show correct answer
+                                            if (isCorrect) onCorrectAnswer() else onWrongAnswer()
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
+                    Spacer(modifier = Modifier.height(12.dp))
                 }
-                Spacer(modifier = Modifier.height(12.dp)) // ✅ Space between rows
+            }
+        }
+
+        // ✅ Show Dialog only if explanation exists
+        if (correctAnswerRevealed && quizQuestion.explanation.isNotEmpty()) {
+            Dialog(onDismissRequest = { }) {
+                Card(
+                    modifier = Modifier.padding(16.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF2D1B5C)) // Explanation background
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // ✅ Added Correct/Wrong message
+                        Text(
+                            text = if (selectedAnswerIndex == quizQuestion.correctAnswerIndex)
+                                "✅ You're Correct!"
+                            else
+                                "❌ Wrong! The correct answer is: ${quizQuestion.answers[quizQuestion.correctAnswerIndex]}",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = WorkSans,
+                            color = if (selectedAnswerIndex == quizQuestion.correctAnswerIndex) Correct else Color.Red
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = quizQuestion.explanation,
+                            fontSize = 16.sp,
+                            color = Color.White.copy(alpha = 0.8f),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
             }
         }
     }
@@ -234,7 +305,6 @@ fun AnswerButton(text: String, color: Color, onClick: () -> Unit) {
         Text(text = text, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
     }
 }
-
 
 // Bottom Navigation Bar
 @Composable

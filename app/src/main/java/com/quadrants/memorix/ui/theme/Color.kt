@@ -23,3 +23,5 @@ val GoldenYellow = Color(0xFFF4C542) // Shade of Yellow
 
 // Text & Icon Colors
 val White = Color(0xFFFFFFFF) // White for text/icons
+
+val Correct = Color(0xFF009424)
