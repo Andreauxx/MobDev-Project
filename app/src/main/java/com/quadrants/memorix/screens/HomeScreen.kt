@@ -4,6 +4,12 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
+import android.content.Context
+import android.media.MediaPlayer
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -37,6 +43,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.pager.VerticalPager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.window.Dialog
 import com.quadrants.memorix.MainActivity
 import com.quadrants.memorix.ui.theme.Correct
@@ -46,9 +53,10 @@ import com.quadrants.memorix.ui.theme.DarkMediumViolet
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavController, activity: MainActivity) {
+
+
     var showBottomSheet by remember { mutableStateOf(false) }
     val firestore = FirebaseFirestore.getInstance()
-
     var questions by remember { mutableStateOf<List<QuizQuestion>>(emptyList()) }
     var streak by remember { mutableStateOf(0) }
 
@@ -102,6 +110,7 @@ fun HomeScreen(navController: NavController, activity: MainActivity) {
                         coroutineScope.launch { moveToNextQuestion(pagerState, page, questions.size) } // ✅ Fix: Pass questions.size
                     },
                     onWrongAnswer = {
+
                         streak = 0
                         coroutineScope.launch { moveToNextQuestion(pagerState, page, questions.size) } // ✅ Fix: Pass questions.size
                     }
@@ -179,6 +188,8 @@ fun QuizQuestionSection(
     var selectedAnswerIndex by remember { mutableStateOf<Int?>(null) }
     var correctAnswerRevealed by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current // ✅ Get Context
+
 
     Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Column(
@@ -212,7 +223,7 @@ fun QuizQuestionSection(
                             val isCorrect = index == quizQuestion.correctAnswerIndex
                             val backgroundColor = when {
                                 selectedAnswerIndex == index && isCorrect -> Correct // ✅ Ensure correct answer turns green
-                                selectedAnswerIndex == index && !isCorrect -> Color.Red
+                                selectedAnswerIndex == index && !isCorrect -> Color.Red  
                                 correctAnswerRevealed && isCorrect -> Correct // ✅ Keep correct answer green even if no explanation
                                 else -> Color(0xFF4A326F) // ✅ Default button color
                             }
@@ -223,6 +234,15 @@ fun QuizQuestionSection(
 
                                     // ✅ Ensure correct answer turns green even if no explanation
                                     correctAnswerRevealed = true
+
+
+                                    if (isCorrect) {
+                                        playCorrectSound(context) // ✅ Play correct answer sound
+                                        vibratePhone(context) // ✅ Vibrate on correct answer
+                                    } else {
+                                        playWrongSound(context) // ✅ Play wrong answer sound
+                                        vibratePhone(context) // ✅ Vibrate on wrong answer
+                                    }
 
                                     if (quizQuestion.explanation.isNotEmpty()) {
                                         coroutineScope.launch {
@@ -427,5 +447,58 @@ fun BottomSheetItem(iconId: Int, text: String, onClick: () -> Unit) {
             fontSize = 16.sp,
             fontWeight = FontWeight.Medium
         )
+    }
+}
+
+
+// ✅ Function to Play Sound When the Correct Answer is Selected
+fun playCorrectSound(context: Context) {
+    val mediaPlayer = MediaPlayer.create(context, R.raw.correct)
+    mediaPlayer.start()
+
+    // ✅ Release MediaPlayer after completion
+    mediaPlayer.setOnCompletionListener {
+        it.release()
+    }
+}
+
+fun playWrongSound(context: Context) {
+    val mediaPlayer = MediaPlayer.create(context, R.raw.wrong)
+    mediaPlayer.start()
+
+    // ✅ Release MediaPlayer after completion
+    mediaPlayer.setOnCompletionListener {
+        it.release()
+    }
+}
+
+fun playErrorSound(context: Context) {
+    val mediaPlayer = MediaPlayer.create(context, R.raw.wrong)
+    mediaPlayer.start()
+
+    // ✅ Release MediaPlayer after completion
+    mediaPlayer.setOnCompletionListener {
+        it.release()
+    }
+}
+
+
+
+
+// ✅ Function to Trigger a Short Vibration
+fun vibratePhone(context: Context) {
+    val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+        vibratorManager.defaultVibrator
+    } else {
+        @Suppress("DEPRECATION")
+        context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+    }
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE)) // ✅ 50ms vibration
+    } else {
+        @Suppress("DEPRECATION")
+        vibrator.vibrate(50) // ✅ Legacy vibration method for older devices
     }
 }

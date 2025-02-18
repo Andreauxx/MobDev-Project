@@ -18,19 +18,30 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.quadrants.memorix.ui.theme.*
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateQuizScreen(navController: NavController) {
-    val firestore = FirebaseFirestore.getInstance() // ✅ Initialize Firestore
+    val firestore = FirebaseFirestore.getInstance()
+    val firebaseAuth = FirebaseAuth.getInstance()
+    val currentUser = firebaseAuth.currentUser // Get logged-in user
 
     var quizTitle by remember { mutableStateOf(TextFieldValue("")) }
     var questionTimeLimit by remember { mutableStateOf(TextFieldValue("30")) }
     var newQuestion by remember { mutableStateOf(TextFieldValue("")) }
+    var explanation by remember { mutableStateOf(TextFieldValue("")) } // ✅ Optional Explanation Field
     var answerOptions by remember { mutableStateOf(mutableListOf("", "", "", "")) }
     var correctAnswerIndex by remember { mutableStateOf(0) }
+    var category by remember { mutableStateOf(TextFieldValue("")) }
+    var difficulty by remember { mutableStateOf("Medium") } // ✅ Default difficulty
+    var isPublic by remember { mutableStateOf(true) } // ✅ Control if the question is public
+    var sharedWith by remember { mutableStateOf(mutableListOf<String>()) } // ✅ Store shared users
+
+    var showDialog by remember { mutableStateOf(false) } // ✅ Success dialog
 
     val scrollState = rememberScrollState()
 
@@ -55,86 +66,49 @@ fun CreateQuizScreen(navController: NavController) {
 
         Spacer(modifier = Modifier.height(24.dp))
 
+        // ✅ Quiz Title
         TextField(
             modifier = Modifier.fillMaxWidth().height(60.dp).clip(RoundedCornerShape(12.dp)),
             value = quizTitle,
             onValueChange = { quizTitle = it },
             label = { Text("Quiz Title", color = White) },
-            singleLine = true,
-            leadingIcon = { Icon(Icons.Default.Edit, contentDescription = "Title", tint = White) },
-            colors = TextFieldDefaults.textFieldColors(
-                containerColor = DarkMediumViolet,
-                focusedTextColor = White,
-                unfocusedTextColor = White,
-                cursorColor = White
-            )
+            singleLine = true
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        Text("Add Questions", color = White, fontSize = 20.sp)
-
+        // ✅ Question Field
         TextField(
             modifier = Modifier.fillMaxWidth().height(60.dp).clip(RoundedCornerShape(12.dp)),
             value = newQuestion,
             onValueChange = { newQuestion = it },
             label = { Text("New Question", color = White) },
-            singleLine = true,
-            leadingIcon = { Icon(Icons.Default.QuestionAnswer, contentDescription = "Question", tint = White) },
-            colors = TextFieldDefaults.textFieldColors(
-                containerColor = DarkMediumViolet,
-                focusedTextColor = White,
-                unfocusedTextColor = White,
-                cursorColor = White
-            )
+            singleLine = true
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        answerOptions.forEachIndexed { index, option ->
-            var optionText by remember { mutableStateOf(TextFieldValue(option)) }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                // ✅ Input field for each answer choice
-                TextField(
-                    modifier = Modifier.weight(1f).height(60.dp).clip(RoundedCornerShape(12.dp)),
-                    value = optionText,
-                    onValueChange = {
-                        optionText = it
-                        answerOptions[index] = it.text // ✅ Ensures updates persist
-                    },
-                    label = { Text("Option ${index + 1}", color = White) },
-                    singleLine = true,
-                    colors = TextFieldDefaults.textFieldColors(
-                        containerColor = DarkMediumViolet,
-                        focusedTextColor = White,
-                        unfocusedTextColor = White,
-                        cursorColor = White
-                    )
-                )
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                // ✅ RadioButton correctly updates correctAnswerIndex
-                RadioButton(
-                    selected = index == correctAnswerIndex,
-                    onClick = { correctAnswerIndex = index } // ✅ Fix: Properly updates selection
-                )
-            }
-
-            Text(
-                text = if (index == correctAnswerIndex) "✔ Correct Answer" else "",
-                color = if (index == correctAnswerIndex) Color.Green else White,
-                fontSize = 14.sp
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
+        // ✅ Difficulty Selection
+        DropdownMenu(
+            expanded = false,
+            onDismissRequest = {},
+        ) {
+            DropdownMenuItem(onClick = { difficulty = "Easy" }, text = { Text("Easy") })
+            DropdownMenuItem(onClick = { difficulty = "Medium" }, text = { Text("Medium") })
+            DropdownMenuItem(onClick = { difficulty = "Hard" }, text = { Text("Hard") })
         }
 
+        Spacer(modifier = Modifier.height(16.dp))
 
+        // ✅ Public/Private Toggle
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Public:", color = White)
+            Switch(checked = isPublic, onCheckedChange = { isPublic = it })
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // ✅ Button to Add Question to Firestore
         Button(
             onClick = {
                 if (newQuestion.text.isNotEmpty() && answerOptions.all { it.isNotEmpty() }) {
@@ -143,34 +117,43 @@ fun CreateQuizScreen(navController: NavController) {
                     val quizData = hashMapOf(
                         "question" to newQuestion.text,
                         "answers" to answerOptions.toList(),
-                        "correctAnswerIndex" to correctAnswerIndex, // ✅ Ensure correct index is saved
-                        "timeLimit" to timeLimit
-                    )
+                        "correctAnswerIndex" to correctAnswerIndex,
+                        "timeLimit" to timeLimit,
+                        "category" to category.text,
+                        "difficulty" to difficulty,
+                        "questionType" to "multiple_choice"
+                    ).toMutableMap()
+
+                    // ✅ Set creator ID only if it's private
+                    if (!isPublic) {
+                        quizData["createdBy"] = currentUser?.uid ?: ""
+                        quizData["sharedWith"] = sharedWith // ✅ List of users who can access
+                    }
 
                     firestore.collection("quiz_questions")
                         .add(quizData)
                         .addOnSuccessListener {
-                            println("✅ Question added successfully!")
+                            showDialog = true // ✅ Show success dialog
                         }
                         .addOnFailureListener { e ->
                             println("❌ Error adding question: ${e.message}")
                         }
-
-                    // ✅ Reset form fields
-                    newQuestion = TextFieldValue("")
-                    answerOptions = mutableListOf("", "", "", "")
-                    correctAnswerIndex = 0 // ✅ Reset selection after saving
-                    questionTimeLimit = TextFieldValue("30")
                 }
             },
             colors = ButtonDefaults.buttonColors(containerColor = MediumViolet),
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp)
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(Icons.Default.Add, contentDescription = "Add", tint = White)
-            Spacer(modifier = Modifier.width(8.dp))
             Text("Add Question", color = White)
         }
 
+        // ✅ Show Dialog on Successful Addition
+        if (showDialog) {
+            AlertDialog(
+                onDismissRequest = { showDialog = false },
+                confirmButton = { Button(onClick = { showDialog = false }) { Text("OK") } },
+                title = { Text("Success") },
+                text = { Text("✅ Problem Added!") }
+            )
+        }
     }
 }

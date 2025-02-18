@@ -12,7 +12,20 @@
           "package_name": "com.quadrants.memorix"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "661088903021-9qthd5otrkucibmi1mj87ufkcilupfv3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.quadrants.memorix",
+            "certificate_hash": "9f0998cb2b72c84b91d3241584d0ababb1823375"
+          }
+        },
+        {
+          "client_id": "661088903021-bt8rrjs6kn0g6qr58agfafstv0f1amsd.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDFSGnKWT4oBJGs6SDLYUcTBCR8qEJFQdA"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "661088903021-bt8rrjs6kn0g6qr58agfafstv0f1amsd.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

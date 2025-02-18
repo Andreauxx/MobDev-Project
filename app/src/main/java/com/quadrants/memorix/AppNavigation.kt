@@ -1,6 +1,7 @@
 package com.quadrants.memorix
 
 import android.content.Context
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
@@ -53,6 +54,15 @@ fun AppNavigation(activity: MainActivity) {
             val folderName = backStackEntry.arguments?.getString("folderName") ?: "Unknown"
             val category = backStackEntry.arguments?.getString("category") ?: "Unknown"
             FolderDetailScreen(navController, folderName, category)
+        }
+
+
+        composable("user_details/{userId}/{name}/{email}") { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            val name = Uri.decode(backStackEntry.arguments?.getString("name") ?: "")
+            val email = Uri.decode(backStackEntry.arguments?.getString("email") ?: "")
+
+            UserDetailsScreen(navController, userId, name, email)
         }
 
     }

@@ -27,13 +27,16 @@ import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.firestore.FirebaseFirestore
 import com.quadrants.memorix.R
 import com.quadrants.memorix.ui.theme.*
+import java.util.*
 
 @Composable
 fun SignUpScreen(navController: NavController) {
     val context = LocalContext.current
     val firebaseAuth = remember { FirebaseAuth.getInstance() }
+    val firestore = remember { FirebaseFirestore.getInstance() }
     val oneTapClient = remember { Identity.getSignInClient(context) }
 
     val systemUiController = rememberSystemUiController()
@@ -42,13 +45,13 @@ fun SignUpScreen(navController: NavController) {
         systemUiController.setNavigationBarColor(DarkViolet, darkIcons = false)
     }
 
-    // ✅ Setup Google Sign-Up Request
+    // ✅ Google Sign-Up Request Setup
     val signInRequest = remember {
         BeginSignInRequest.builder()
             .setGoogleIdTokenRequestOptions(
                 BeginSignInRequest.GoogleIdTokenRequestOptions.builder()
                     .setSupported(true)
-                    .setServerClientId("YOUR_WEB_CLIENT_ID") // Replace with Firebase Web Client ID
+                    .setServerClientId("661088903021-bt8rrjs6kn0g6qr58agfafstv0f1amsd.apps.googleusercontent.com") // Replace this!
                     .setFilterByAuthorizedAccounts(false) // Show all Google accounts
                     .build()
             )
@@ -59,21 +62,69 @@ fun SignUpScreen(navController: NavController) {
         contract = ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
-            val credential = oneTapClient.getSignInCredentialFromIntent(result.data)
-            val googleIdToken = credential.googleIdToken
+            try {
+                val credential = oneTapClient.getSignInCredentialFromIntent(result.data)
+                val googleIdToken = credential.googleIdToken
+                println("✅ Google ID Token received: $googleIdToken")
 
-            if (googleIdToken != null) {
-                val firebaseCredential = GoogleAuthProvider.getCredential(googleIdToken, null)
-                firebaseAuth.signInWithCredential(firebaseCredential)
-                    .addOnCompleteListener { task ->
-                        if (task.isSuccessful) {
-                            Toast.makeText(context, "Signed up with Google!", Toast.LENGTH_SHORT).show()
-                            navController.navigate("home") // Redirect to home
-                        } else {
-                            Toast.makeText(context, "Google Sign-Up failed!", Toast.LENGTH_SHORT).show()
+                if (googleIdToken != null) {
+                    val firebaseCredential = GoogleAuthProvider.getCredential(googleIdToken, null)
+                    firebaseAuth.signInWithCredential(firebaseCredential)
+                        .addOnCompleteListener { task ->
+                            if (task.isSuccessful) {
+                                val userId = firebaseAuth.currentUser?.uid ?: return@addOnCompleteListener
+                                val email = firebaseAuth.currentUser?.email ?: ""
+                                val name = firebaseAuth.currentUser?.displayName ?: ""
+
+                                firestore.collection("users").document(userId).get()
+                                    .addOnSuccessListener { document ->
+                                        if (!document.exists()) {
+                                            println("🔹 Creating new user in Firestore")
+
+                                            val newUser = hashMapOf(
+                                                "name" to name,
+                                                "email" to email,
+                                                "age" to 0,
+                                                "school" to "",
+                                                "createdFlashcards" to emptyList<String>(),
+                                                "createdQuizzes" to emptyList<String>(),
+                                                "preferences" to hashMapOf(
+                                                    "subjects" to emptyList<String>(),
+                                                    "difficulty" to ""
+                                                ),
+                                                "sharedWithMe" to emptyList<String>()
+                                            )
+
+                                            firestore.collection("users").document(userId)
+                                                .set(newUser)
+                                                .addOnSuccessListener {
+                                                    println("✅ User profile created in Firestore")
+                                                    navController.navigate("user_details/$userId/$name/$email")
+                                                }
+                                                .addOnFailureListener { e ->
+                                                    Toast.makeText(context, "Error saving user: ${e.message}", Toast.LENGTH_SHORT).show()
+                                                }
+                                        } else {
+                                            println("✅ User already exists in Firestore")
+                                            Toast.makeText(context, "Welcome back, $name!", Toast.LENGTH_SHORT).show()
+                                            navController.navigate("home")
+                                        }
+                                    }
+                                    .addOnFailureListener { e ->
+                                        Toast.makeText(context, "Error checking user: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                            } else {
+                                Toast.makeText(context, "Google Sign-In failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
+                            }
                         }
-                    }
+                } else {
+                    Toast.makeText(context, "Google Sign-In failed: No token received!", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Google Sign-In error: ${e.message}", Toast.LENGTH_SHORT).show()
             }
+        } else {
+            Toast.makeText(context, "Google Sign-In canceled!", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -153,78 +204,27 @@ fun SignUpScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ✅ Email Sign-Up Button
+            // ✅ Email Sign-Up Button (RESTORED)
             Button(
                 onClick = { navController.navigate("email_signup") },
                 colors = ButtonDefaults.buttonColors(containerColor = DarkieViolet),
                 shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth(0.85f)
-                    .height(55.dp)
-                    .border(width = 1.dp, color = GoldenYellow, shape = RoundedCornerShape(12.dp))
+                modifier = Modifier.fillMaxWidth(0.85f).height(55.dp).border(width = 1.dp, color = GoldenYellow, shape = RoundedCornerShape(12.dp))
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Email,
-                        contentDescription = "Email",
-                        tint = White,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "Sign up with Email", color = White, fontSize = 16.sp)
-                }
+                Icon(imageVector = Icons.Default.Email, contentDescription = "Email", tint = White)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(text = "Sign up with Email", color = White, fontSize = 16.sp)
+
             }
 
-            Spacer(modifier = Modifier.height(160.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // ✅ Log in Redirection
+            // ✅ Login Button (RESTORED)
             TextButton(
-                onClick = { navController.navigate("login") },
-                modifier = Modifier
-                    .fillMaxWidth(0.85f)
-                    .height(55.dp)
-                    .border(width = 1.dp, color = GoldenYellow, shape = RoundedCornerShape(8.dp))
+                onClick = { navController.navigate("login") }
             ) {
-                Text(
-                    text = "Log in",
-                    color = White,
-                    fontSize = 12.sp,
-                    fontFamily = WorkSans
-                )
+                Text("Already have an account? Log in", color = White, fontSize = 14.sp)
             }
-        }
-    }
-}
-
-
-
-@Composable
-fun EmailSignUpScreen(navController: NavController) {
-    val context = LocalContext.current
-    val firebaseAuth = FirebaseAuth.getInstance()
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-
-    Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        TextField(value = email, onValueChange = { email = it }, label = { Text("Email") })
-        TextField(value = password, onValueChange = { password = it }, label = { Text("Password") })
-
-        Button(onClick = {
-            firebaseAuth.createUserWithEmailAndPassword(email, password)
-                .addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
-                        Toast.makeText(context, "Registered Successfully!", Toast.LENGTH_SHORT).show()
-                        navController.navigate("home")
-                    } else {
-                        Toast.makeText(context, "Registration Failed!", Toast.LENGTH_SHORT).show()
-                    }
-                }
-        }) {
-            Text("Sign Up")
         }
     }
 }

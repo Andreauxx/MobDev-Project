@@ -1,175 +1,188 @@
 package com.quadrants.memorix.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.google.accompanist.systemuicontroller.rememberSystemUiController
-import com.quadrants.memorix.R
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.quadrants.memorix.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(navController: NavController) {
+    val context = LocalContext.current
+    val firebaseAuth = remember { FirebaseAuth.getInstance() }
+    val firestore = remember { FirebaseFirestore.getInstance() }
+
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    val systemUiController = rememberSystemUiController()
+    var isLoading by remember { mutableStateOf(false) }
+    var passwordVisible by remember { mutableStateOf(false) } // ✅ Toggle password visibility
 
-    // **Set Status Bar & Navigation Bar Colors**
-    SideEffect {
-        systemUiController.setStatusBarColor(DarkViolet, darkIcons = false)
-        systemUiController.setNavigationBarColor(DarkViolet, darkIcons = false) // ✅ Match the background
-    }
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = DarkViolet // Background Color
-    ) { paddingValues ->
+    Box(
+        modifier = Modifier.fillMaxSize().background(DarkViolet)
+    ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.Center
         ) {
-            // Top Navigation Row
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Back",
-                    tint = White,
-                    modifier = Modifier
-                        .size(30.dp)
-                        .clickable { navController.popBackStack() }
-                )
+            Spacer(modifier = Modifier.height(60.dp))
 
-                Icon(
-                    painter = painterResource(id = R.drawable.owl_icon),
-                    contentDescription = "Logo",
-                    tint = White,
-                    modifier = Modifier.size(70.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Log in Title
             Text(
-                text = "Log in",
-                style = TextStyle(
-                    fontFamily = WorkSans,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 32.sp,
-                    color = Color.White
-                ),
-                textAlign = TextAlign.Center
+                text = "Welcome Back!",
+                fontSize = 24.sp,
+                color = White,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                fontFamily = WorkSans
             )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Email Field
-            TextField(
-                value = email,
-                onValueChange = { email = it },
-                label = { Text(text = "Email or username", color = White, style = TextStyle(fontFamily = WorkSans, fontWeight = FontWeight.Normal)) },
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MediumViolet, // Background color
-                    unfocusedContainerColor = DarkieViolet, // Background color when not focused
-                    focusedTextColor = White,
-                    unfocusedTextColor = White,
-                    focusedIndicatorColor = Color.Transparent, // Remove underline
-                    unfocusedIndicatorColor = Color.Transparent // Remove underline
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(DarkieViolet, RoundedCornerShape(8.dp))
-                    .padding(horizontal = 8.dp)
-                    .border(1.dp, color = GoldenYellow)
-            )
-
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Password Field
-            TextField(
-                value = password,
-                onValueChange = { password = it },
-                label = {
-                    Text(
-                        text = "Password",
-                        color = White,
-                        style = TextStyle(fontFamily = WorkSans, fontWeight = FontWeight.Normal)
-                    )
-                },
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MediumViolet, // Background when focused
-                    unfocusedContainerColor = DarkieViolet, // Background when not focused
-                    focusedTextColor = White, // Text color when focused
-                    unfocusedTextColor = White, // Text color when not focused
-                    focusedIndicatorColor = Color.Transparent, // Remove underline
-                    unfocusedIndicatorColor = Color.Transparent // Remove underline
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(DarkieViolet, RoundedCornerShape(8.dp))
-                    .padding(horizontal = 8.dp)
-                    .border(1.dp, color = GoldenYellow)
-            )
-
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Log in Button
+            // ✅ Email Input
+            OutlinedTextField(
+                value = email,
+                onValueChange = { email = it },
+                label = { Text("Email", color = White) },
+                leadingIcon = { Icon(imageVector = Icons.Default.Email, contentDescription = "Email", tint = GoldenYellow) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(0.85f),
+                colors = TextFieldDefaults.colors(
+                    focusedTextColor = White,
+                    unfocusedTextColor = White,
+                    cursorColor = White,
+                    focusedContainerColor = DarkMediumViolet,
+                    unfocusedContainerColor = DarkMediumViolet
+                )
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // ✅ Password Input with Toggle Visibility
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("Password", color = White) },
+                leadingIcon = { Icon(imageVector = Icons.Default.Lock, contentDescription = "Password", tint = GoldenYellow) },
+                trailingIcon = {
+                    val visibilityIcon = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Icon(imageVector = visibilityIcon, contentDescription = "Toggle Password", tint = GoldenYellow)
+                    }
+                },
+                singleLine = true,
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth(0.85f),
+                colors = TextFieldDefaults.colors(
+                    focusedTextColor = White,
+                    unfocusedTextColor = White,
+                    cursorColor = White,
+                    focusedContainerColor = DarkMediumViolet,
+                    unfocusedContainerColor = DarkMediumViolet
+                )
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // ✅ Login Button
             Button(
-                onClick = { navController.navigate("onboarding") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = GoldenYellow),
-                shape = RoundedCornerShape(10.dp)
+                onClick = {
+                    if (email.isEmpty() || password.isEmpty()) {
+                        Toast.makeText(context, "Please enter both email and password!", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+
+                    isLoading = true
+                    firebaseAuth.signInWithEmailAndPassword(email, password)
+                        .addOnCompleteListener { task ->
+                            if (task.isSuccessful) {
+                                val userId = firebaseAuth.currentUser?.uid
+                                if (userId != null) {
+                                    // ✅ Fetch User Details from Firestore
+                                    firestore.collection("users").document(userId).get()
+                                        .addOnSuccessListener { document ->
+                                            if (document.exists()) {
+                                                val userName = document.getString("name") ?: "User"
+                                                Toast.makeText(context, "Welcome, $userName!", Toast.LENGTH_SHORT).show()
+
+                                                // ✅ Navigate to Home and Clear Back Stack
+                                                navController.navigate("home") {
+                                                    popUpTo("login") { inclusive = true }
+                                                }
+                                            } else {
+                                                Toast.makeText(context, "User profile not found!", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                        .addOnFailureListener {
+                                            Toast.makeText(context, "Failed to fetch profile!", Toast.LENGTH_SHORT).show()
+                                        }
+                                }
+                            } else {
+                                Toast.makeText(context, "Login Failed! Check email or password.", Toast.LENGTH_SHORT).show()
+                            }
+                            isLoading = false
+                        }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = DarkieViolet),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth(0.85f).height(55.dp)
+            ) {
+                Text(text = "Log In", color = White, fontSize = 16.sp)
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // ✅ Forgot Password
+            TextButton(
+                onClick = { navController.navigate("forgot_password") },
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "Log in",
-                    color = DarkViolet,
-                    style = TextStyle(fontFamily = WorkSans, fontWeight = FontWeight.Medium)
+                    text = "Forgot Password?",
+                    color = White.copy(alpha = 0.8f),
+                    fontSize = 14.sp
                 )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            // Sign up Prompt
-            Text(
-                text = "Don't have an account?",
-                fontSize = 16.sp,
-                color = White,
-                textAlign = TextAlign.Center,
-            )
-
+            // ✅ Sign Up Redirection
             TextButton(
-                onClick = { navController.navigate("signup") }
+                onClick = { navController.navigate("signup") },
+                modifier = Modifier.fillMaxWidth(0.85f)
             ) {
-                Text(text = "Sign up", color = White, fontSize = 15.sp)
+                Text(
+                    text = "Don't have an account? Sign up",
+                    color = White,
+                    fontSize = 14.sp
+                )
             }
+        }
+
+        // ✅ Loading Indicator
+        if (isLoading) {
+            CircularProgressIndicator(
+                color = GoldenYellow,
+                modifier = Modifier.align(Alignment.Center)
+            )
         }
     }
 }
