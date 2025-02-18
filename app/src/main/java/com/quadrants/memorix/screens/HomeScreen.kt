@@ -223,7 +223,7 @@ fun QuizQuestionSection(
                             val isCorrect = index == quizQuestion.correctAnswerIndex
                             val backgroundColor = when {
                                 selectedAnswerIndex == index && isCorrect -> Correct // ✅ Ensure correct answer turns green
-                                selectedAnswerIndex == index && !isCorrect -> Color.Red  
+                                selectedAnswerIndex == index && !isCorrect -> Color.Red
                                 correctAnswerRevealed && isCorrect -> Correct // ✅ Keep correct answer green even if no explanation
                                 else -> Color(0xFF4A326F) // ✅ Default button color
                             }

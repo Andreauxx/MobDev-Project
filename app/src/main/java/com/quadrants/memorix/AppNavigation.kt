@@ -35,6 +35,7 @@ fun AppNavigation(activity: MainActivity) {
             })
         }
 
+
         // Main Screens
         composable("home") { HomeScreen(navController, activity) }  // Pass activity here
         composable("folders") { LibraryScreen(navController) }
@@ -64,6 +65,18 @@ fun AppNavigation(activity: MainActivity) {
 
             UserDetailsScreen(navController, userId, name, email)
         }
+
+        // Interests Selection Screen (after user details)
+        composable("interests_selection/{userId}") { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            InterestsSelectionScreen(navController, userId)
+        }
+
+        composable("edit_profile") {
+            EditProfileScreen(navController)
+        }
+
+
 
     }
 }

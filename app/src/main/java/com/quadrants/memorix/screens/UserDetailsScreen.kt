@@ -4,7 +4,6 @@ package com.quadrants.memorix.screens
 
 import android.widget.Toast
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -38,11 +37,9 @@ fun UserDetailsScreen(navController: NavController, userId: String, name: String
     var age by remember { mutableStateOf("") }
     var school by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var birthday by remember { mutableStateOf("") }
+    var course by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
-
-    // 🔹 List of available subjects
-    val subjectsList = listOf("Math", "Science", "History", "English", "Computer Science")
-    val selectedSubjects = remember { mutableStateListOf<String>() }
 
     Box(
         modifier = Modifier.fillMaxSize().background(DarkViolet)
@@ -81,56 +78,20 @@ fun UserDetailsScreen(navController: NavController, userId: String, name: String
             CustomTextField(value = school, onValueChange = { school = it }, label = "School", icon = Icons.Default.School)
             Spacer(modifier = Modifier.height(12.dp))
 
-            PasswordTextField(value = password, onValueChange = { password = it }, label = "Password")
+            CustomTextField(value = birthday, onValueChange = { birthday = it }, label = "Birthday (YYYY-MM-DD)", icon = Icons.Default.Cake)
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 🔹 Subject Selection UI
-            Text(
-                text = "Select Your Interests",
-                fontSize = 18.sp,
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontFamily = WorkSans
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+            CustomTextField(value = course, onValueChange = { course = it }, label = "Course", icon = Icons.Default.School)
+            Spacer(modifier = Modifier.height(12.dp))
 
-            Column {
-                subjectsList.forEach { subject ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth(0.85f).padding(vertical = 4.dp)
-                    ) {
-                        Checkbox(
-                            checked = selectedSubjects.contains(subject),
-                            onCheckedChange = { isChecked ->
-                                if (isChecked) {
-                                    selectedSubjects.add(subject)
-                                } else {
-                                    selectedSubjects.remove(subject)
-                                }
-                            },
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = GoldenYellow,
-                                uncheckedColor = Color.White
-                            )
-                        )
-                        Text(
-                            text = subject,
-                            fontSize = 16.sp,
-                            color = Color.White,
-                            fontFamily = WorkSans
-                        )
-                    }
-                }
-            }
-
+            PasswordTextField(value = password, onValueChange = { password = it }, label = "Password")
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 🔹 Save Button
+            // 🔹 Save and Continue Button
             Button(
                 onClick = {
                     val userAge = age.toIntOrNull() ?: 0
-                    if (fullName.isNotEmpty() && userAge > 0 && school.isNotEmpty() && selectedSubjects.isNotEmpty()) {
+                    if (fullName.isNotEmpty() && userAge > 0 && school.isNotEmpty() && birthday.isNotEmpty() && course.isNotEmpty()) {
                         isLoading = true
 
                         val firebaseAuth = FirebaseAuth.getInstance()
@@ -141,25 +102,24 @@ fun UserDetailsScreen(navController: NavController, userId: String, name: String
                                 .addOnSuccessListener {
                                     Toast.makeText(context, "Password set successfully!", Toast.LENGTH_SHORT).show()
 
+                                    // ✅ Store user info first (without interests)
                                     val userData = hashMapOf(
                                         "name" to fullName,
                                         "email" to email,
                                         "age" to userAge,
+                                        "birthday" to birthday,
                                         "school" to school,
-                                        "password" to password, // ⚠️ Only for testing, REMOVE this in production!
+                                        "course" to course,
+                                        "profilePictureUrl" to "", // ✅ Empty for now
                                         "createdFlashcards" to emptyList<String>(),
                                         "createdQuizzes" to emptyList<String>(),
-                                        "preferences" to hashMapOf(
-                                            "subjects" to selectedSubjects,  // ✅ Save selected subjects
-                                            "difficulty" to "Medium"
-                                        ),
                                         "sharedWithMe" to emptyList<String>()
                                     )
 
                                     firestore.collection("users").document(userId).set(userData)
                                         .addOnSuccessListener {
-                                            Toast.makeText(context, "Profile Created!", Toast.LENGTH_SHORT).show()
-                                            navController.navigate("home")
+                                            Toast.makeText(context, "Profile Saved!", Toast.LENGTH_SHORT).show()
+                                            navController.navigate("interests_selection/$userId")
                                         }
                                         .addOnFailureListener { e ->
                                             Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -198,6 +158,7 @@ fun UserDetailsScreen(navController: NavController, userId: String, name: String
         }
     }
 }
+
 @Composable
 fun CustomTextField(value: String, onValueChange: (String) -> Unit, label: String, icon: ImageVector) {
     OutlinedTextField(

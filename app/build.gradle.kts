@@ -41,7 +41,14 @@ android {
 }
 
 dependencies {
+    //PFPS DEPENDENCIESSS CLOUDINARY
+    implementation ("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation ("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation ("com.squareup.okhttp3:okhttp:4.9.1")
+    implementation ("com.google.firebase:firebase-appcheck-playintegrity:16.1.0")
 
+
+    implementation("io.coil-kt:coil-compose:2.2.2")
     implementation ("androidx.compose.material:material-icons-extended:1.5.0")
 
     //Firebase
@@ -81,6 +88,7 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.firebase.auth.ktx)
     implementation(libs.play.services.auth)
+    implementation(libs.firebase.storage.ktx)
 
     // ✅ Testing Dependencies (Already correct)
     testImplementation(libs.junit)
