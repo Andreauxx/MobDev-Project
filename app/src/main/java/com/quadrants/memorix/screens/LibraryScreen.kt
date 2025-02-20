@@ -9,6 +9,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,158 +22,143 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.google.firebase.firestore.FirebaseFirestore
+import com.quadrants.memorix.Flashcard
+import com.quadrants.memorix.FlashcardSet
+import com.quadrants.memorix.QuizQuestion
 import com.quadrants.memorix.R
-import com.google.accompanist.systemuicontroller.rememberSystemUiController
-import com.quadrants.memorix.ui.theme.*
+import com.quadrants.memorix.ui.theme.DarkViolet
+import com.quadrants.memorix.ui.theme.DarkieViolet
+import com.quadrants.memorix.ui.theme.RoyalBlue
+import com.quadrants.memorix.ui.theme.White
 
 data class Folder(
     val name: String,
     val itemsCount: Int,
     val lastModified: String,
-    val category: String
+    val category: String,
+    val isLocked: Boolean = false,
+    val type: String // "Flashcard" or "Quiz"
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LibraryScreen(navController: NavController) {
-    val systemUiController = rememberSystemUiController()
+fun LibraryScreen(navController: NavController, userId: String) {
+    val firestore = FirebaseFirestore.getInstance()
+    var flashcardSets by remember { mutableStateOf<List<FlashcardSet>>(emptyList()) }
+    var quizzes by remember { mutableStateOf<List<QuizQuestion>>(emptyList()) }
+    var selectedCategory by remember { mutableStateOf("All") }
+    val categories = listOf("All", "Computer Science", "Mathematics", "Physics")
 
-    // **Set Status Bar & Navigation Bar Colors**
-    SideEffect {
-        systemUiController.setStatusBarColor(DarkViolet, darkIcons = false)
-        systemUiController.setNavigationBarColor(DarkViolet, darkIcons = false)
-    }
-
-    val folders = listOf(
-        Folder("Calculus", 5, "Updated 2 days ago", "Flashcard Sets"),
-        Folder("Mobile Dev", 5, "Updated 3 hours ago", "Flashcard Sets"),
-        Folder("Data Structures", 5, "Updated 1 week ago", "Study Guides"),
-        Folder("Physics", 3, "Updated yesterday", "Study Guides"),
-        Folder("Chemistry", 7, "Updated today", "Classes"),
-        Folder("AI & Machine Learning", 10, "Updated 5 hours ago", "Folders"),
-        Folder("Algebra", 6, "Updated 4 days ago", "Classes"),
-        Folder("Software Engineering", 8, "Updated 2 weeks ago", "Folders")
-    )
-
-    var selectedCategory by remember { mutableStateOf("All") } // ✅ Default to "All"
-    val categories = listOf("All", "Flashcard Sets", "Study Guides", "Classes", "Folders") // ✅ Include "All"
-
-    // **Filter Folders Based on Selected Category**
-    val filteredFolders = if (selectedCategory == "All") folders else folders.filter { it.category == selectedCategory }
-
-    Scaffold(
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { /* TODO: Add folder logic */ },
-                containerColor = MediumViolet,
-                contentColor = White
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_add),
-                    contentDescription = "Add Folder"
-                )
-            }
-        },
-        bottomBar = {
-            BottomNavBar(navController, currentScreen = "library", onPlusClick = { /* TODO: Handle Modal */ })
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(DarkViolet)
-                .padding(paddingValues)
-        ) {
-            // **Header Section**
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Library",
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = White
-                )
-                Icon(
-                    painter = painterResource(id = R.drawable.owl_icon),
-                    contentDescription = "Logo",
-                    tint = White,
-                    modifier = Modifier.size(32.dp)
-                )
-            }
-
-            // **Category Selection Tabs**
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            )
-            {
-                items(categories) { category ->
-                    Text(
-                        text = category,
-                        fontSize = 16.sp,
-                        fontWeight = if (selectedCategory == category) FontWeight.Bold else FontWeight.Normal,
-                        color = if (selectedCategory == category) White else White.copy(alpha = 0.6f),
-                        modifier = Modifier
-                            .clickable { selectedCategory = category }
-                            .padding(8.dp)
+    // Fetch flashcards
+    LaunchedEffect(Unit) {
+        firestore.collection("flashcard_sets")
+            .get()
+            .addOnSuccessListener { result ->
+                flashcardSets = result.documents.mapNotNull { doc ->
+                    FlashcardSet(
+                        title = doc.getString("title") ?: "Untitled Set",
+                        category = doc.getString("category") ?: "Uncategorized",
+                        isPublic = doc.getBoolean("isPublic") ?: true,
+                        createdBy = doc.getString("createdBy") ?: "",
+                        cards = (doc.get("cards") as? List<Map<String, Any>>)?.map {
+                            Flashcard(
+                                type = it["type"] as? String ?: "term-definition",
+                                term = it["term"] as? String ?: "",
+                                definition = it["definition"] as? String ?: "",
+                                explanation = it["explanation"] as? String ?: ""
+                            )
+                        } ?: emptyList()
                     )
                 }
             }
+    }
 
-            Divider(color = White.copy(alpha = 0.5f), thickness = 1.dp, modifier = Modifier.padding(horizontal = 16.dp))
-
-            // **Folder Grid View**
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(filteredFolders) { folder ->
-                    FolderItem(folder, navController)
+    // Fetch quizzes
+    LaunchedEffect(Unit) {
+        firestore.collection("quiz_questions")
+            .get()
+            .addOnSuccessListener { result ->
+                quizzes = result.documents.mapNotNull { doc ->
+                    QuizQuestion(
+                        question = doc.getString("question") ?: "",
+                        answers = doc.get("answers") as? List<String> ?: emptyList(),
+                        correctAnswerIndex = doc.getLong("correctAnswerIndex")?.toInt() ?: 0,
+                        explanation = doc.getString("explanation") ?: ""
+                    )
                 }
             }
-        }
     }
-}
 
-
-// ✅ **Bottom Navigation Bar**
-@Composable
-fun BottomNavBar(navController: NavController, currentScreen: String, onPlusClick: (() -> Unit)? = null) {
-    BottomAppBar(
-        containerColor = DarkieViolet
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically
+    Column(modifier = Modifier.fillMaxSize().background(DarkViolet)) {
+        // Category selection
+        LazyRow(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            BottomNavItem(R.drawable.ic_home, "Home", currentScreen == "home") { navController.navigate("home") }
-            BottomNavItem(R.drawable.ic_folder, "Library", currentScreen == "library") { navController.navigate("library") }
-
-            // Center Plus Button
-            if (onPlusClick != null) {
-                IconButton(onClick = onPlusClick) {
-                    Icon(painterResource(id = R.drawable.ic_add), contentDescription = "Add", tint = Color.White)
-                }
+            items(categories) { category ->
+                Text(
+                    text = category,
+                    fontSize = 16.sp,
+                    fontWeight = if (selectedCategory == category) FontWeight.Bold else FontWeight.Normal,
+                    color = White,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (selectedCategory == category) DarkieViolet else Color.Transparent)
+                        .padding(12.dp)
+                        .clickable { selectedCategory = category }
+                )
             }
+        }
 
-            BottomNavItem(R.drawable.ic_barchart, "Stats", currentScreen == "stats") { navController.navigate("stats") }
-            BottomNavItem(R.drawable.ic_profile, "Profile", currentScreen == "profile") { navController.navigate("profile") }
+        // Flashcards section
+        Text(
+            text = "📚 Flashcard Sets",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = White,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+
+        LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.padding(horizontal = 16.dp)) {
+            items(flashcardSets.filter { it.category == selectedCategory || selectedCategory == "All" }) { set ->
+                val isLocked = !set.isPublic && set.createdBy != userId
+                val folder = Folder(
+                    name = set.title,
+                    itemsCount = set.cards.size,
+                    lastModified = "Updated recently",
+                    category = set.category,
+                    isLocked = isLocked,
+                    type = "Flashcard"
+                )
+                FolderItem(folder, navController)
+            }
+        }
+
+        // Quizzes section
+        Text(
+            text = "📝 Quizzes",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = White,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+
+        LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.padding(horizontal = 16.dp)) {
+            items(quizzes) { quiz ->
+                val folder = Folder(
+                    name = quiz.question.take(20) + "...",
+                    itemsCount = quiz.answers.size,
+                    lastModified = "Updated recently",
+                    category = "Quiz",
+                    type = "Quiz"
+                )
+                FolderItem(folder, navController)
+            }
         }
     }
 }
 
-
-// ✅ **Folder Item**
 @Composable
 fun FolderItem(folder: Folder, navController: NavController) {
     Card(
@@ -181,20 +168,22 @@ fun FolderItem(folder: Folder, navController: NavController) {
             .fillMaxWidth()
             .aspectRatio(1f)
             .clickable {
-                navController.navigate("folderDetail/${folder.name}/${folder.category}")
+                if (!folder.isLocked) {
+                    navController.navigate("folderDetail/${folder.name}/${folder.category}")
+                }
             }
             .clip(RoundedCornerShape(12.dp))
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.SpaceBetween,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_folder),
-                contentDescription = "Folder",
-                tint = RoyalBlue,
-                modifier = Modifier.size(32.dp)
-            )
+            if (folder.isLocked) {
+                Icon(imageVector = Icons.Default.Lock, contentDescription = "Locked", tint = Color.Red)
+            } else {
+                Icon(painter = painterResource(id = R.drawable.ic_folder), contentDescription = "Folder", tint = RoyalBlue)
+            }
 
             Text(text = folder.name, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = White)
             Text(text = "${folder.itemsCount} items", fontSize = 14.sp, color = White.copy(alpha = 0.7f))
@@ -202,4 +191,3 @@ fun FolderItem(folder: Folder, navController: NavController) {
         }
     }
 }
-

@@ -37,7 +37,8 @@ fun CreateSetScreen(navController: NavController) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         TopAppBar(
-            modifier = Modifier.fillMaxWidth().height(70.dp),
+
+            modifier = Modifier.fillMaxWidth().height(70.dp).clip(RoundedCornerShape(12.dp)),
             title = { Text("Create Set", color = White, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
             navigationIcon = {
                 IconButton(

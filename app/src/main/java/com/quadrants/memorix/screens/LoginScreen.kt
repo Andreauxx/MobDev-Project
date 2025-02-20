@@ -1,5 +1,6 @@
 package com.quadrants.memorix.screens
 
+import android.content.SharedPreferences
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,7 +27,7 @@ import com.quadrants.memorix.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LoginScreen(navController: NavController) {
+fun LoginScreen(navController: NavController, sharedPreferences: SharedPreferences) {
     val context = LocalContext.current
     val firebaseAuth = remember { FirebaseAuth.getInstance() }
     val firestore = remember { FirebaseFirestore.getInstance() }
@@ -124,9 +125,12 @@ fun LoginScreen(navController: NavController) {
                                                 Toast.makeText(context, "Welcome, $userName!", Toast.LENGTH_SHORT).show()
 
                                                 // ✅ Navigate to Home and Clear Back Stack
+                                                // After successful login
+                                                sharedPreferences.edit().putString("userId", userId).apply() // Save userId
                                                 navController.navigate("home") {
-                                                    popUpTo("login") { inclusive = true }
+                                                    popUpTo("login") { inclusive = true } // Remove login screen from backstack
                                                 }
+
                                             } else {
                                                 Toast.makeText(context, "User profile not found!", Toast.LENGTH_SHORT).show()
                                             }

@@ -24,8 +24,15 @@ fun AppNavigation(activity: MainActivity) {
         composable("splash") { SplashScreen(navController) }
 
         // Authentication Screens
-        composable("signup") { SignUpScreen(navController) }
-        composable("login") { LoginScreen(navController) }
+        composable("signup") {
+            val sharedPreferences = context.getSharedPreferences("MemorixPrefs", Context.MODE_PRIVATE)
+            SignUpScreen(navController, sharedPreferences)
+        }
+
+        composable("login") {
+            val sharedPreferences = context.getSharedPreferences("MemorixPrefs", Context.MODE_PRIVATE)
+            LoginScreen(navController, sharedPreferences)
+        }
 
         // Onboarding (Appears only after login/signup)
         composable("onboarding") {
@@ -38,7 +45,11 @@ fun AppNavigation(activity: MainActivity) {
 
         // Main Screens
         composable("home") { HomeScreen(navController, activity) }  // Pass activity here
-        composable("folders") { LibraryScreen(navController) }
+        composable("folders") {
+            val userId = sharedPreferences.getString("userId", "") ?: ""
+            LibraryScreen(navController, userId)
+        }
+
         composable("stats") { StatsScreen(navController) }
         composable("profile") { ProfileScreen(navController) }
         // **NEW: Category Content Screen**

@@ -1,5 +1,6 @@
 package com.quadrants.memorix.screens
 
+import android.content.SharedPreferences
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
@@ -33,7 +34,7 @@ import com.quadrants.memorix.ui.theme.*
 import java.util.*
 
 @Composable
-fun SignUpScreen(navController: NavController) {
+fun SignUpScreen(navController: NavController, sharedPreferences: SharedPreferences) {
     val context = LocalContext.current
     val firebaseAuth = remember { FirebaseAuth.getInstance() }
     val firestore = remember { FirebaseFirestore.getInstance() }
@@ -99,6 +100,10 @@ fun SignUpScreen(navController: NavController) {
                                                 .set(newUser)
                                                 .addOnSuccessListener {
                                                     println("✅ User profile created in Firestore")
+
+                                                    // ✅ Save userId in SharedPreferences
+                                                    sharedPreferences.edit().putString("userId", userId).apply()
+
                                                     navController.navigate("user_details/$userId/$name/$email")
                                                 }
                                                 .addOnFailureListener { e ->
@@ -107,8 +112,15 @@ fun SignUpScreen(navController: NavController) {
                                         } else {
                                             println("✅ User already exists in Firestore")
                                             Toast.makeText(context, "Welcome back, $name!", Toast.LENGTH_SHORT).show()
-                                            navController.navigate("home")
+
+                                            // ✅ Save userId in SharedPreferences
+                                            sharedPreferences.edit().putString("userId", userId).apply()
+
+                                            navController.navigate("home") {
+                                                popUpTo("signup") { inclusive = true }
+                                            }
                                         }
+
                                     }
                                     .addOnFailureListener { e ->
                                         Toast.makeText(context, "Error checking user: ${e.message}", Toast.LENGTH_SHORT).show()

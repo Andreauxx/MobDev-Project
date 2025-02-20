@@ -138,6 +138,8 @@ fun HomeScreen(navController: NavController, activity: MainActivity) {
     }
 }
 
+
+
 // ✅ Improved Search Bar
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

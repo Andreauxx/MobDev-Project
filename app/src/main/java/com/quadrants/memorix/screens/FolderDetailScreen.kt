@@ -41,7 +41,10 @@ fun FolderDetailScreen(navController: NavController, folderName: String, categor
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkViolet)
             )
         },
-        bottomBar = { BottomNavBar(navController, currentScreen = "folderDetail") }
+        bottomBar = {
+            BottomNavBar(navController, currentScreen = "folderDetail", onPlusClick = {})
+        }
+
     ) { paddingValues ->
         Column(
             modifier = Modifier

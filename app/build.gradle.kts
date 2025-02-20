@@ -41,6 +41,11 @@ android {
 }
 
 dependencies {
+
+    //DEPENDENCY FOR CHATGPT
+    implementation ("com.squareup.okhttp3:okhttp:4.9.3") // For API calls
+    implementation ("com.google.code.gson:gson:2.8.8")   // For JSON parsing
+
     //PFPS DEPENDENCIESSS CLOUDINARY
     implementation ("com.squareup.retrofit2:retrofit:2.9.0")
     implementation ("com.squareup.retrofit2:converter-gson:2.9.0")

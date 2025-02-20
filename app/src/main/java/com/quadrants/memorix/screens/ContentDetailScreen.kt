@@ -30,11 +30,20 @@ fun ContentDetailScreen(navController: NavController, itemName: String, itemType
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(text = itemName, color = White, fontWeight = FontWeight.Bold, fontSize = 20.sp) },
+                title = {
+                    Text(
+                        text = itemName,
+                        color = White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp
+                    )
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkViolet)
             )
         },
-        bottomBar = { BottomNavBar(navController, currentScreen = "content") }
+        bottomBar = {
+            BottomNavBar(navController, currentScreen = "content", onPlusClick = {})
+        }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -62,7 +71,7 @@ fun ContentDetailScreen(navController: NavController, itemName: String, itemType
     }
 }
 
-@Composable
+    @Composable
 fun ContentItem(content: String) {
     Card(
         shape = RoundedCornerShape(12.dp),
