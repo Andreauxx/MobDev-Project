@@ -8,8 +8,11 @@ data class Flashcard(
     val explanation: String = "",
     val answers: List<String>? = null, // Only for multiple-choice
     val correctAnswerIndex: Int? = null, // Only for multiple-choice
-    val streakCount: Int = 0 // Optional streak count
-)
+    val streakCount: Int = 0, // Optional streak count,
+    val createdBy: String = "",
+) {
+
+}
 
 // Define FlashcardSet Data Class
 data class FlashcardSet(
@@ -17,5 +20,5 @@ data class FlashcardSet(
     val category: String = "",
     val isPublic: Boolean = true,
     val createdBy: String = "",
-    val cards: List<Flashcard> = emptyList()
+    val cards: List<Flashcard> = emptyList(),
 )

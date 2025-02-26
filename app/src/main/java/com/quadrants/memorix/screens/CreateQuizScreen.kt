@@ -1,12 +1,12 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.quadrants.memorix.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,143 +17,85 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontFamily
 import androidx.navigation.NavController
-import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.quadrants.memorix.ui.theme.*
 
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateQuizScreen(navController: NavController) {
     val firestore = FirebaseFirestore.getInstance()
-    val firebaseAuth = FirebaseAuth.getInstance()
-    val currentUser = firebaseAuth.currentUser // Get logged-in user
-
-    var quizTitle by remember { mutableStateOf(TextFieldValue("")) }
-    var questionTimeLimit by remember { mutableStateOf(TextFieldValue("30")) }
-    var newQuestion by remember { mutableStateOf(TextFieldValue("")) }
-    var explanation by remember { mutableStateOf(TextFieldValue("")) } // ✅ Optional Explanation Field
-    var answerOptions by remember { mutableStateOf(mutableListOf("", "", "", "")) }
+    var title by remember { mutableStateOf(TextFieldValue("") )}
+    var category by remember { mutableStateOf(TextFieldValue("") )}
+    var question by remember { mutableStateOf(TextFieldValue("") )}
+    var timeLimit by remember { mutableStateOf(TextFieldValue("") )}
+    var answers = remember { mutableStateListOf(TextFieldValue(""), TextFieldValue(""), TextFieldValue(""), TextFieldValue("")) }
     var correctAnswerIndex by remember { mutableStateOf(0) }
-    var category by remember { mutableStateOf(TextFieldValue("")) }
-    var difficulty by remember { mutableStateOf("Medium") } // ✅ Default difficulty
-    var isPublic by remember { mutableStateOf(true) } // ✅ Control if the question is public
-    var sharedWith by remember { mutableStateOf(mutableListOf<String>()) } // ✅ Store shared users
-
-    var showDialog by remember { mutableStateOf(false) } // ✅ Success dialog
-
-    val scrollState = rememberScrollState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(DarkViolet)
-            .verticalScroll(scrollState)
             .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.Start
     ) {
-        TopAppBar(
-            modifier = Modifier.fillMaxWidth().height(70.dp),
-            title = { Text("Create Quiz", color = White, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
-            navigationIcon = {
-                IconButton(onClick = { navController.popBackStack() }) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = White)
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = MediumViolet)
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // ✅ Quiz Title
-        TextField(
-            modifier = Modifier.fillMaxWidth().height(60.dp).clip(RoundedCornerShape(12.dp)),
-            value = quizTitle,
-            onValueChange = { quizTitle = it },
-            label = { Text("Quiz Title", color = White) },
-            singleLine = true
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // ✅ Question Field
-        TextField(
-            modifier = Modifier.fillMaxWidth().height(60.dp).clip(RoundedCornerShape(12.dp)),
-            value = newQuestion,
-            onValueChange = { newQuestion = it },
-            label = { Text("New Question", color = White) },
-            singleLine = true
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // ✅ Difficulty Selection
-        DropdownMenu(
-            expanded = false,
-            onDismissRequest = {},
-        ) {
-            DropdownMenuItem(onClick = { difficulty = "Easy" }, text = { Text("Easy") })
-            DropdownMenuItem(onClick = { difficulty = "Medium" }, text = { Text("Medium") })
-            DropdownMenuItem(onClick = { difficulty = "Hard" }, text = { Text("Hard") })
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // ✅ Public/Private Toggle
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Public:", color = White)
-            Switch(checked = isPublic, onCheckedChange = { isPublic = it })
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // ✅ Button to Add Question to Firestore
-        Button(
-            onClick = {
-                if (newQuestion.text.isNotEmpty() && answerOptions.all { it.isNotEmpty() }) {
-                    val timeLimit = questionTimeLimit.text.toIntOrNull() ?: 30
-
-                    val quizData = hashMapOf(
-                        "question" to newQuestion.text,
-                        "answers" to answerOptions.toList(),
-                        "correctAnswerIndex" to correctAnswerIndex,
-                        "timeLimit" to timeLimit,
-                        "category" to category.text,
-                        "difficulty" to difficulty,
-                        "questionType" to "multiple_choice"
-                    ).toMutableMap()
-
-                    // ✅ Set creator ID only if it's private
-                    if (!isPublic) {
-                        quizData["createdBy"] = currentUser?.uid ?: ""
-                        quizData["sharedWith"] = sharedWith // ✅ List of users who can access
-                    }
-
-                    firestore.collection("quiz_questions")
-                        .add(quizData)
-                        .addOnSuccessListener {
-                            showDialog = true // ✅ Show success dialog
-                        }
-                        .addOnFailureListener { e ->
-                            println("❌ Error adding question: ${e.message}")
-                        }
-                }
-            },
-            colors = ButtonDefaults.buttonColors(containerColor = MediumViolet),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Add Question", color = White)
-        }
-
-        // ✅ Show Dialog on Successful Addition
-        if (showDialog) {
-            AlertDialog(
-                onDismissRequest = { showDialog = false },
-                confirmButton = { Button(onClick = { showDialog = false }) { Text("OK") } },
-                title = { Text("Success") },
-                text = { Text("✅ Problem Added!") }
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            IconButton(onClick = { navController.popBackStack() }) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = White)
+            }
+            Text(
+                text = "Create Quiz",
+                fontSize = 28.sp,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                color = White,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 14.dp)
             )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Title", color = White) }, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)), colors = TextFieldDefaults.outlinedTextFieldColors(focusedBorderColor = GoldenYellow, unfocusedBorderColor = White))
+        Spacer(modifier = Modifier.height(12.dp))
+        OutlinedTextField(value = category, onValueChange = { category = it }, label = { Text("Category", color = White) }, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)), colors = TextFieldDefaults.outlinedTextFieldColors(focusedBorderColor = GoldenYellow, unfocusedBorderColor = White))
+        Spacer(modifier = Modifier.height(12.dp))
+        OutlinedTextField(value = question, onValueChange = { question = it }, label = { Text("Question", color = White) }, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)), colors = TextFieldDefaults.outlinedTextFieldColors(focusedBorderColor = GoldenYellow, unfocusedBorderColor = White))
+        Spacer(modifier = Modifier.height(12.dp))
+        OutlinedTextField(
+            value = timeLimit,
+            onValueChange = {
+                if (it.text.all { char -> char.isDigit() }) timeLimit = it
+            },
+            label = { Text("Time Limit (seconds)", color = White) },
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)),
+            colors = TextFieldDefaults.outlinedTextFieldColors(focusedBorderColor = GoldenYellow, unfocusedBorderColor = White)
+        )
+
+        answers.forEachIndexed { index, answer ->
+            OutlinedTextField(value = answer, onValueChange = { answers[index] = it }, label = { Text("Option ${index + 1}", color = White) }, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)), colors = TextFieldDefaults.outlinedTextFieldColors(focusedBorderColor = GoldenYellow, unfocusedBorderColor = White))
+        }
+
+        Text("Select Correct Option", color = White, fontSize = 16.sp, fontFamily = WorkSans, modifier = Modifier.padding(top = 8.dp))
+        Row(horizontalArrangement = Arrangement.SpaceAround, modifier = Modifier.fillMaxWidth()) {
+            answers.forEachIndexed { index, _ ->
+                RadioButton(selected = correctAnswerIndex == index, onClick = { correctAnswerIndex = index }, colors = RadioButtonDefaults.colors(selectedColor = GoldenYellow))
+            }
+        }
+
+        Button(onClick = {
+            if (title.text.isNotEmpty() && category.text.isNotEmpty() && question.text.isNotEmpty() && timeLimit.text.isNotEmpty() && answers.all { it.text.isNotEmpty() }) {
+                val quizData = hashMapOf(
+                    "title" to title.text,
+                    "category" to category.text,
+                    "question" to question.text,
+                    "timeLimit" to timeLimit.text.toInt(),
+                    "answers" to answers.map { it.text },
+                    "correctAnswerIndex" to correctAnswerIndex
+                )
+                firestore.collection("quiz_questions").add(quizData)
+                    .addOnSuccessListener { navController.popBackStack() }
+            }
+        }, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).padding(top = 8.dp), colors = ButtonDefaults.buttonColors(containerColor = GoldenYellow)) {
+            Text("Save Quiz", color = DarkViolet, fontFamily = WorkSans)
         }
     }
 }

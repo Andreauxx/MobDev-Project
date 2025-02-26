@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -28,16 +29,20 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.quadrants.memorix.MainActivity
 import com.quadrants.memorix.R
 import com.quadrants.memorix.ui.theme.DarkViolet
+import com.quadrants.memorix.ui.theme.GoldenYellow
+import com.quadrants.memorix.ui.theme.White
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(navController: NavController) {
+fun ProfileScreen(navController: NavController, activity: MainActivity, onPlusClick: () -> Unit) {
     val firebaseAuth = remember { FirebaseAuth.getInstance() }
     val firestore = remember { FirebaseFirestore.getInstance() }
     val userId = firebaseAuth.currentUser?.uid
-
+    var showBottomSheet by remember { mutableStateOf(false) }
     var username by remember { mutableStateOf("Loading...") }
     var fullName by remember { mutableStateOf("Loading...") }
     var email by remember { mutableStateOf("Loading...") }
@@ -74,7 +79,7 @@ fun ProfileScreen(navController: NavController) {
 
     Scaffold(
         bottomBar = {
-            BottomNavBar(navController = navController, currentScreen = "profile", onPlusClick = {})
+            BottomNavBar(navController = navController, currentScreen = "profile", onPlusClick = onPlusClick )
         },
         content = { paddingValues ->
             Box(
@@ -85,7 +90,7 @@ fun ProfileScreen(navController: NavController) {
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
-                        color = Color.Yellow,
+                        color = GoldenYellow,
                         modifier = Modifier.align(Alignment.Center)
                     )
                 } else {
@@ -108,7 +113,7 @@ fun ProfileScreen(navController: NavController) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_streak),
                                 contentDescription = "Streak Icon",
-                                tint = Color.Yellow,
+                                tint = GoldenYellow,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -128,6 +133,23 @@ fun ProfileScreen(navController: NavController) {
                             FavoriteFolder(name = "Calculus", itemCount = 5)
                             FavoriteFolder(name = "Mobile Dev", itemCount = 5)
                         }
+                        // Button to Navigate to SelectContentScreen
+                        Button(
+                            onClick = { navController.navigate("select_content") },
+                            colors = ButtonDefaults.buttonColors(containerColor = GoldenYellow),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                        ) {
+                            Text(
+                                text = "Customize Home Screen",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = DarkViolet
+                            )
+                        }
+
 
                         Spacer(modifier = Modifier.height(14.dp))
 
@@ -140,36 +162,61 @@ fun ProfileScreen(navController: NavController) {
                         Spacer(modifier = Modifier.height(16.dp))
 
 
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // ✅ Edit Profile Button
-                        OutlinedButton(
-                            onClick = { navController.navigate("edit_profile") },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                            modifier = Modifier.fillMaxWidth(0.6f),
-                            border = BorderStroke(1.dp, Color.Yellow)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp) // Space between buttons
                         ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_edit),
-                                contentDescription = "Edit Profile",
-                                tint = Color.White,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = "Edit Profile", fontSize = 14.sp, color = Color.White)
+                            // Edit Profile Button
+                            OutlinedButton(
+                                onClick = { navController.navigate("edit_profile") },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                                modifier = Modifier.weight(1f), // Equal width
+                                border = BorderStroke(1.dp, GoldenYellow)
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_edit),
+                                    contentDescription = "Edit Profile",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(text = "Edit Profile", fontSize = 14.sp, color = Color.White)
+                            }
+
+                            // Logout Button
+                            OutlinedButton(
+                                onClick = { logout(navController) },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                                modifier = Modifier.weight(1f), // Equal width
+                                border = BorderStroke(1.dp, Color.Red)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ExitToApp, // Logout icon
+                                    contentDescription = "Log Out",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(text = "Log Out", fontSize = 14.sp, color = Color.White)
+                            }
                         }
 
-
-                        Spacer(modifier = Modifier.weight(1f))
-
+                        Spacer(modifier = Modifier.weight(0.2f))
                         // ✅ Footer
                         Text("Memorix Inc.", fontSize = 12.sp, color = Color.White.copy(alpha = 0.5f))
                     }
+
                 }
             }
         }
     )
+    if (showBottomSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showBottomSheet = false }
+        ) {
+            BottomSheetContent(navController, activity) { showBottomSheet = false }
+        }
+    }
 }
 
 @Composable
@@ -178,7 +225,7 @@ fun ProfileDetail(icon: ImageVector, label: String, value: String) {
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(imageVector = icon, contentDescription = label, tint = Color.Yellow, modifier = Modifier.size(24.dp))
+        Icon(imageVector = icon, contentDescription = label, tint = GoldenYellow, modifier = Modifier.size(24.dp))
         Spacer(modifier = Modifier.width(12.dp))
         Column {
             Text(text = label, fontSize = 12.sp, color = Color.White.copy(alpha = 0.7f))
@@ -190,7 +237,7 @@ fun ProfileDetail(icon: ImageVector, label: String, value: String) {
 @Composable
 fun FavoriteFolder(name: String, itemCount: Int) {
     Card(
-        modifier = Modifier.size(140.dp, 100.dp),
+        modifier = Modifier.size(120.dp, 80.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF2D1B5C))
     ) {
@@ -208,5 +255,13 @@ fun FavoriteFolder(name: String, itemCount: Int) {
             Text(text = name, fontSize = 14.sp, color = Color.White)
             Text(text = "$itemCount items", fontSize = 12.sp, color = Color.White.copy(alpha = 0.7f))
         }
+    }
+}
+
+
+fun logout(navController: NavController) {
+    FirebaseAuth.getInstance().signOut() // Logs out the user
+    navController.navigate("login") {
+        popUpTo("home") { inclusive = true } // Clears the back stack
     }
 }

@@ -1,5 +1,8 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.quadrants.memorix.screens
 
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -10,62 +13,120 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.quadrants.memorix.MainActivity
 import com.quadrants.memorix.ui.theme.*
-import androidx.compose.ui.res.painterResource
-import com.quadrants.memorix.R
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FolderDetailScreen(navController: NavController, folderName: String, category: String) {
-    val files = when (category) {
-        "Flashcard Sets" -> listOf("Flashcard 1", "Flashcard 2", "Flashcard 3")
-        "Study Guides" -> listOf("Guide 1", "Guide 2", "Guide 3")
-        "Classes" -> listOf("Lesson 1", "Lesson 2", "Lesson 3")
-        "Folders" -> listOf("File 1", "File 2", "File 3")
-        else -> listOf("Item 1", "Item 2", "Item 3") // Default fallback
-    }
+fun FolderDetailScreen(folderName: String, items: List<Map<String, Any>>, navController: NavController, isCreator: Boolean,   activity: MainActivity)
+{
+    var showBottomSheet by remember { mutableStateOf(false) }
+
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(text = folderName, color = White, fontWeight = FontWeight.Bold, fontSize = 20.sp) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(painterResource(id = R.drawable.ic_back), contentDescription = "Back", tint = White)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkViolet)
-            )
-        },
         bottomBar = {
-            BottomNavBar(navController, currentScreen = "folderDetail", onPlusClick = {})
+            BottomNavBar(navController = navController, currentScreen = "folderDetail", onPlusClick = { showBottomSheet = true }
+            )
         }
-
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(DarkViolet)
                 .padding(paddingValues)
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(folderName, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = White)
+
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    items(items) { item ->
+                        val cards = item["cards"] as? List<Map<String, Any>> ?: listOf(item)
+                        cards.forEach { card ->
+                            when {
+                                // ✅ Flashcard
+                                card.containsKey("term") && card.containsKey("definition") -> {
+                                    FlashcardItem(item = card, navController = navController, isCreator = isCreator, folderName = folderName)
+                                }
+                                // ✅ Quiz Question
+                                card.containsKey("question") && card.containsKey("answers") -> {
+                                    QuestionItem(item = card, navController = navController, isCreator = isCreator, folderName = folderName)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+    }
+    if (showBottomSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showBottomSheet = false }
+        ) {
+            BottomSheetContent(navController, activity) { showBottomSheet = false }
+        }
+    }
+}
+
+@Composable
+fun QuestionItem(item: Map<String, Any>, navController: NavController, isCreator: Boolean, folderName: String) {
+    val question = item["question"]?.toString() ?: "No question available"
+    val answers = item["answers"] as? List<*> ?: emptyList<String>()
+
+    val correctAnswerIndex = when (val index = item["correctAnswerIndex"] ?: item["correctAnswer"]) {
+        is Double -> index.toInt()
+        is Int -> index
+        else -> -1
+    }
+
+    val explanation = item["explanation"]?.toString() ?: ""
+
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkieViolet),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp)
+            .clickable { navController.navigate("viewQuestion/${Uri.encode(question)}") }
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(text = question, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = White)
+
+            if (answers.isNotEmpty()) {
+                answers.forEachIndexed { index, answer ->
+                    Text(
+                        text = "${index + 1}. ${answer.toString()}",
+                        fontSize = 16.sp,
+                        color = if (index == correctAnswerIndex) Color.Green else White.copy(alpha = 0.7f)
+                    )
+                }
+            }
+
             Text(
-                text = "Contents of $folderName",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = White,
-                modifier = Modifier.padding(16.dp)
+                text = if (explanation.isNotEmpty()) "Explanation: $explanation"
+                else "✅ Correct Answer: ${answers.getOrNull(correctAnswerIndex)?.toString() ?: "N/A"}",
+                fontSize = 14.sp,
+                color = White.copy(alpha = 0.7f),
+                modifier = Modifier.padding(top = 8.dp)
             )
 
-            LazyColumn(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(files) { file ->
-                    FileItem(file)
+            if (isCreator) {
+                Button(
+                    onClick = { navController.navigate("editQuiz/${Uri.encode(folderName)}/${Uri.encode(question)}") }, // ✅ Fixed Edit Navigation
+                    colors = ButtonDefaults.buttonColors(containerColor = MediumViolet),
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    Text("Edit", color = DarkViolet)
                 }
             }
         }
@@ -73,25 +134,34 @@ fun FolderDetailScreen(navController: NavController, folderName: String, categor
 }
 
 @Composable
-fun FileItem(fileName: String) {
+fun FlashcardItem(item: Map<String, Any>, navController: NavController, isCreator: Boolean, folderName: String) {
+    val term = item["term"]?.toString() ?: "No term available"
+    val definition = item["definition"]?.toString() ?: "No definition available"
+
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = DarkieViolet),
         modifier = Modifier
             .fillMaxWidth()
             .padding(8.dp)
-            .clickable { /* TODO: Open file */ }
+            .clickable { navController.navigate("viewQuestion/${Uri.encode(term)}") }
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = fileName,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = White
-            )
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(text = term, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = White)
+            Text(text = "Definition: $definition", fontSize = 16.sp, color = White.copy(alpha = 0.7f))
+
+            if (isCreator) {
+                Button(
+                    onClick = {
+                        navController.navigate("editFlashcard/${Uri.encode(folderName)}/${Uri.encode(term)}")
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MediumViolet),
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    Text("Edit", color = DarkViolet)
+                }
+
+            }
         }
     }
 }

@@ -42,6 +42,15 @@ android {
 
 dependencies {
 
+    implementation("androidx.compose.material3:material3:1.2.0-alpha02") // Or latest stable version
+
+
+    implementation("com.google.code.gson:gson:2.10.1") // ✅ Use the latest version
+    implementation("androidx.compose.material3:material3:1.1.2")
+    implementation("androidx.compose.ui:ui:1.5.0")
+    implementation("androidx.compose.ui:ui-tooling-preview:1.5.0")
+    implementation("androidx.compose.foundation:foundation:1.5.0")
+
     //DEPENDENCY FOR CHATGPT
     implementation ("com.squareup.okhttp3:okhttp:4.9.3") // For API calls
     implementation ("com.google.code.gson:gson:2.8.8")   // For JSON parsing
