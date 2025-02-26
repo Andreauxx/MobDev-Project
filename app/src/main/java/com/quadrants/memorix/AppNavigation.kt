@@ -95,7 +95,7 @@ fun AppNavigation(activity: MainActivity) {
                 }
 
                 // Main Screens
-                composable("home") { HomeScreen(navController, activity) }
+                composable("home") { HomeScreen(navController, activity, onPlusClick = { showBottomSheet = true }) }
                 composable("folders") {
                     val userId = sharedPreferences.getString("userId", "") ?: ""
                     LibraryScreen(navController, userId, activity, onPlusClick = { showBottomSheet = true })
@@ -112,6 +112,24 @@ fun AppNavigation(activity: MainActivity) {
                 composable("edit_profile") {
                     EditProfileScreen(navController)
                 }
+
+                composable("home?quizJson={quizJson}") { backStackEntry ->
+                    val quizJson = backStackEntry.arguments?.getString("quizJson")
+                    val decodedQuizJson = quizJson?.let {
+                        val decodedString = Uri.decode(it) // Decode safely
+                        String(Base64.decode(decodedString, Base64.DEFAULT))
+                    }
+
+                    val listType = object : TypeToken<List<QuizQuestion>>() {}.type
+                    val quizQuestions: List<QuizQuestion> = Gson().fromJson(decodedQuizJson, listType) ?: emptyList()
+
+                    println("✅ Decoded quiz JSON: $decodedQuizJson")
+                    println("✅ Parsed quizQuestions: ${quizQuestions.size}")
+
+                    HomeScreen(navController, activity, quizQuestions, onPlusClick = { navController.navigate("createQuiz") })
+                }
+
+
 
 
 

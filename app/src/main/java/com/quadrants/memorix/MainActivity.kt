@@ -10,12 +10,15 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.view.WindowCompat
 import androidx.navigation.compose.rememberNavController
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.quadrants.memorix.ui.theme.MemorixTheme
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
+import com.quadrants.memorix.ui.theme.DarkViolet
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
@@ -53,6 +56,16 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MemorixTheme {
+                val systemUiController = rememberSystemUiController()
+
+                // Set status bar color
+                SideEffect {
+                    systemUiController.setStatusBarColor(
+                        color = DarkViolet, // Change to your desired color
+                        darkIcons = false  // true for black icons, false for white icons
+                    )
+                }
+
                 AppNavigation(this) // ✅ Ensures navigation is properly set up
             }
         }

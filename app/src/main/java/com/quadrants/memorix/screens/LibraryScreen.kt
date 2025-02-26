@@ -184,10 +184,15 @@ fun FolderItem(
                     val itemsJson = gson.toJson(items)
                     val encodedFolderName = Base64.encodeToString(folderName.toByteArray(), Base64.DEFAULT)
                     val encodedItemsJson = Base64.encodeToString(itemsJson.toByteArray(), Base64.DEFAULT)
+                    val safeEncodedJson = Uri.encode(encodedItemsJson) // Prevents issues with special characters
+
+
 
                     when (type) {
                         "flashcard" -> navController.navigate("folderDetail/flashcard/$encodedFolderName/$encodedItemsJson")
-                        "quiz" -> navController.navigate("folderDetail/quiz/$encodedFolderName/$encodedItemsJson")
+
+                        "quiz" ->      navController.navigate("home?quizJson=$safeEncodedJson") // ✅ Pass Quiz Data to HomeScreen
+
                     }
                 }
             }

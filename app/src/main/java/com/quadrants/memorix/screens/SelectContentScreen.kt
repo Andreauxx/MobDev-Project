@@ -35,35 +35,35 @@ fun SelectContentScreen(navController: NavController) {
     val firebaseAuth = FirebaseAuth.getInstance()
     val userId = firebaseAuth.currentUser?.uid
 
-    var selectedFolders by remember { mutableStateOf<Set<String>>(setOf()) }
-    var selectedCategories by remember { mutableStateOf<Set<String>>(setOf()) }
-    var selectedQuestions by remember { mutableStateOf<Set<String>>(setOf()) }
+    var selectedStudyGuides by remember { mutableStateOf<Set<String>>(setOf()) }
+    var selectedFlashcardSets by remember { mutableStateOf<Set<String>>(setOf()) }
 
-    var categories by remember { mutableStateOf<List<String>>(emptyList()) }
-    var foldersWithQuestions by remember { mutableStateOf<Map<String, List<String>>>(emptyMap()) }
+    var studyGuideCategories by remember { mutableStateOf<List<String>>(emptyList()) }
+    var flashcardSetCategories by remember { mutableStateOf<List<String>>(emptyList()) }
 
-    // UI state for expanded cards
-    var isCategoriesExpanded by remember { mutableStateOf(false) }
-    var isFoldersExpanded by remember { mutableStateOf(false) }
-    var isQuestionsExpanded by remember { mutableStateOf(false) }
+    var isStudyGuideExpanded by remember { mutableStateOf(false) }
+    var isFlashcardSetExpanded by remember { mutableStateOf(false) }
 
-    // Fetch categories and folders with questions from Firestore
+    // Fetch categories for study guides and flashcard sets
     LaunchedEffect(Unit) {
-        firestore.collection("quiz_questions").get().addOnSuccessListener { result ->
-            val categorySet = mutableSetOf<String>()
-            val folderMap = mutableMapOf<String, MutableList<String>>()
+        firestore.collection("flashcard_sets").get().addOnSuccessListener { result ->
+            val studyGuideSet = mutableSetOf<String>()
+            val flashcardSetSet = mutableSetOf<String>()
 
             result.documents.forEach { document ->
                 val category = document.getString("category") ?: "Unknown Category"
-                val folderTitle = document.getString("title") ?: "Unknown Folder"
-                val question = document.getString("question") ?: ""
+                val cards = document.get("cards") as? List<Map<String, Any>> ?: emptyList()
 
-                categorySet.add(category)
-                folderMap.getOrPut(folderTitle) { mutableListOf() }.add(question)
+                if (cards.any { it["type"] == "term-definition" }) {
+                    studyGuideSet.add(category)
+                }
+                if (cards.any { it["type"] == "multiple-choice" }) {
+                    flashcardSetSet.add(category)
+                }
             }
 
-            categories = categorySet.toList().sorted()
-            foldersWithQuestions = folderMap.toMap()
+            studyGuideCategories = studyGuideSet.toList().sorted()
+            flashcardSetCategories = flashcardSetSet.toList().sorted()
         }
     }
 
@@ -80,7 +80,7 @@ fun SelectContentScreen(navController: NavController) {
             }
             Text(
                 "Select Content for Home Screen",
-                fontSize = 28.sp,
+                fontSize = 24.sp,
                 color = White,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 14.dp)
@@ -89,191 +89,109 @@ fun SelectContentScreen(navController: NavController) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Categories Card
-        Card(
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF4B2A72)),
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { isCategoriesExpanded = !isCategoriesExpanded }
-                .padding(vertical = 6.dp)
-                .clip(RoundedCornerShape(12.dp))
-        ) {
-            Column {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(12.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Category,
-                        contentDescription = "Category Icon",
-                        tint = GoldenYellow,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text("Categories", fontSize = 18.sp, color = White, modifier = Modifier.weight(1f))
-                }
-                if (isCategoriesExpanded) {
-                    Column {
-                        categories.forEach { category ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)
-                            ) {
-                                Text(category, fontSize = 18.sp, color = White, modifier = Modifier.weight(1f))
-                                Checkbox(
-                                    checked = selectedCategories.contains(category),
-                                    onCheckedChange = { checked ->
-                                        selectedCategories = if (checked) selectedCategories + category else selectedCategories - category
-                                    },
-                                    colors = CheckboxDefaults.colors(checkedColor = GoldenYellow)
-                                )
-                            }
-                        }
-                    }
-                }
+        // Study Guides Card
+        ContentSelectionCard(
+            title = "Study Guides",
+            isExpanded = isStudyGuideExpanded,
+            onExpandToggle = { isStudyGuideExpanded = !isStudyGuideExpanded },
+            categories = studyGuideCategories,
+            selectedCategories = selectedStudyGuides,
+            onCategoryToggle = { category, selected ->
+                selectedStudyGuides = if (selected) selectedStudyGuides + category else selectedStudyGuides - category
             }
-        }
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Folders Card
-        Card(
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF4B2A72)),
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { isFoldersExpanded = !isFoldersExpanded }
-                .padding(vertical = 6.dp)
-                .clip(RoundedCornerShape(12.dp))
-        ) {
-            Column {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(12.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Folder,
-                        contentDescription = "Folder Icon",
-                        tint = GoldenYellow,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text("Folders", fontSize = 18.sp, color = White, modifier = Modifier.weight(1f))
-                }
-                if (isFoldersExpanded) {
-                    Column {
-                        foldersWithQuestions.keys.forEach { folder ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)
-                            ) {
-                                Text(folder, fontSize = 18.sp, color = White, modifier = Modifier.weight(1f))
-                                Checkbox(
-                                    checked = selectedFolders.contains(folder),
-                                    onCheckedChange = { checked ->
-                                        selectedFolders = if (checked) selectedFolders + folder else selectedFolders - folder
-                                        val folderQuestions = foldersWithQuestions[folder] ?: emptyList()
-                                        selectedQuestions = if (checked) selectedQuestions + folderQuestions else selectedQuestions - folderQuestions.toSet()
-                                    },
-                                    colors = CheckboxDefaults.colors(checkedColor = GoldenYellow)
-                                )
-                            }
-                        }
-                    }
-                }
+        // Flashcard Sets Card
+        ContentSelectionCard(
+            title = "Flashcard Sets",
+            isExpanded = isFlashcardSetExpanded,
+            onExpandToggle = { isFlashcardSetExpanded = !isFlashcardSetExpanded },
+            categories = flashcardSetCategories,
+            selectedCategories = selectedFlashcardSets,
+            onCategoryToggle = { category, selected ->
+                selectedFlashcardSets = if (selected) selectedFlashcardSets + category else selectedFlashcardSets - category
             }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Questions Card
-        Card(
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF4B2A72)),
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { isQuestionsExpanded = !isQuestionsExpanded }
-                .padding(vertical = 6.dp)
-                .clip(RoundedCornerShape(12.dp))
-        ) {
-            Column {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(12.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.QuestionAnswer,
-                        contentDescription = "Question Icon",
-                        tint = GoldenYellow,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text("Questions", fontSize = 18.sp, color = White, modifier = Modifier.weight(1f))
-                }
-                if (isQuestionsExpanded) {
-                    Column {
-                        foldersWithQuestions.forEach { (folderTitle, questions) ->
-                            Text(folderTitle, fontSize = 18.sp, color = White, modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp))
-                            questions.forEach { question ->
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)
-                                ) {
-                                    Text(question, fontSize = 16.sp, color = White, modifier = Modifier.weight(1f))
-                                    Checkbox(
-                                        checked = selectedQuestions.contains(question),
-                                        onCheckedChange = { checked ->
-                                            selectedQuestions = if (checked) selectedQuestions + question else selectedQuestions - question
-                                        },
-                                        colors = CheckboxDefaults.colors(checkedColor = GoldenYellow)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        )
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Save Button (Fixed at Bottom)
+        // Save Button
         Button(
             onClick = {
                 if (userId != null) {
-                    if (selectedFolders.isEmpty() && selectedCategories.isEmpty() && selectedQuestions.isEmpty()) {
-                        Toast.makeText(navController.context, "Please select at least one item.", Toast.LENGTH_SHORT).show()
-                    } else {
-                        val preferences = mapOf(
-                            "user_preferences" to mapOf(
-                                "selectedFolders" to selectedFolders.toList(),
-                                "selectedCategories" to selectedCategories.toList(),
-                                "selectedQuestions" to selectedQuestions.toList()
-                            )
+                    val preferences = mapOf(
+                        "user_preferences" to mapOf(
+                            "selectedStudyGuides" to selectedStudyGuides.toList(),
+                            "selectedFlashcardSets" to selectedFlashcardSets.toList()
                         )
+                    )
 
-                        firestore.collection("users").document(userId)
-                            .set(preferences, SetOptions.merge())
-                            .addOnSuccessListener {
-                                Toast.makeText(navController.context, "Preferences saved!", Toast.LENGTH_SHORT).show()
-                                navController.popBackStack()
-                            }
-                            .addOnFailureListener {
-                                Toast.makeText(navController.context, "Failed to save preferences", Toast.LENGTH_SHORT).show()
-                            }
-                    }
-                } else {
-                    Toast.makeText(navController.context, "User not authenticated", Toast.LENGTH_SHORT).show()
+                    firestore.collection("users").document(userId)
+                        .set(preferences, SetOptions.merge())
+                        .addOnSuccessListener {
+                            Toast.makeText(navController.context, "Preferences saved!", Toast.LENGTH_SHORT).show()
+                            navController.popBackStack()
+                        }
+                        .addOnFailureListener {
+                            Toast.makeText(navController.context, "Failed to save preferences", Toast.LENGTH_SHORT).show()
+                        }
                 }
             },
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .padding(bottom = 16.dp),
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).padding(bottom = 16.dp),
             colors = ButtonDefaults.buttonColors(containerColor = GoldenYellow)
         ) {
             Text("Save", color = DarkViolet)
+        }
+    }
+}
+
+@Composable
+fun ContentSelectionCard(
+    title: String,
+    isExpanded: Boolean,
+    onExpandToggle: () -> Unit,
+    categories: List<String>,
+    selectedCategories: Set<String>,
+    onCategoryToggle: (String, Boolean) -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF4B2A72)),
+        modifier = Modifier.fillMaxWidth().clickable { onExpandToggle() }.padding(vertical = 6.dp).clip(RoundedCornerShape(12.dp))
+    ) {
+        Column {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Folder,
+                    contentDescription = "$title Icon",
+                    tint = GoldenYellow,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(title, fontSize = 18.sp, color = White, modifier = Modifier.weight(1f))
+            }
+            if (isExpanded) {
+                Column {
+                    categories.forEach { category ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)
+                        ) {
+                            Text(category, fontSize = 18.sp, color = White, modifier = Modifier.weight(1f))
+                            Checkbox(
+                                checked = selectedCategories.contains(category),
+                                onCheckedChange = { checked -> onCategoryToggle(category, checked) },
+                                colors = CheckboxDefaults.colors(checkedColor = GoldenYellow)
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

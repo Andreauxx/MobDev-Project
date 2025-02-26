@@ -24,6 +24,8 @@ import com.quadrants.memorix.MainActivity
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import com.quadrants.memorix.utils.getCurrentDate
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -186,11 +188,7 @@ fun BarChart(studyData: List<Float>) {
     }
 }
 
-// ✅ Get the current date in yyyy-MM-dd format
-fun getCurrentDate(): String {
-    val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-    return sdf.format(java.util.Date())
-}
+
 
 // ✅ Get the last 5 days in yyyy-MM-dd format
 fun getLast5Days(): List<String> {
