@@ -1,5 +1,6 @@
 package com.quadrants.memorix.screens
 
+import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -260,8 +261,16 @@ fun FavoriteFolder(name: String, itemCount: Int) {
 
 
 fun logout(navController: NavController) {
-    FirebaseAuth.getInstance().signOut() // Logs out the user
-    navController.navigate("login") {
-        popUpTo("home") { inclusive = true } // Clears the back stack
+    val firebaseAuth = FirebaseAuth.getInstance()
+    firebaseAuth.signOut() // Logs out the user
+
+    // ✅ Remove stored user ID from SharedPreferences
+    val context = navController.context
+    val sharedPreferences = context.getSharedPreferences("MemorixPrefs", Context.MODE_PRIVATE)
+    sharedPreferences.edit().remove("userId").apply()
+
+    // ✅ Navigate to Signup instead of Login
+    navController.navigate("signup") {
+        popUpTo("home") { inclusive = true } // Clears navigation stack
     }
 }

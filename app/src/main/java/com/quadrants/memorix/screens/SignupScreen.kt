@@ -69,13 +69,17 @@ fun SignUpScreen(navController: NavController, sharedPreferences: SharedPreferen
                 println("✅ Google ID Token received: $googleIdToken")
 
                 if (googleIdToken != null) {
-                    val firebaseCredential = GoogleAuthProvider.getCredential(googleIdToken, null)
+                    val firebaseCredential = GoogleAuthProvider.getCredential(googleIdToken, null) // ✅ FIX: Define firebaseCredential
+
                     firebaseAuth.signInWithCredential(firebaseCredential)
                         .addOnCompleteListener { task ->
                             if (task.isSuccessful) {
                                 val userId = firebaseAuth.currentUser?.uid ?: return@addOnCompleteListener
                                 val email = firebaseAuth.currentUser?.email ?: ""
                                 val name = firebaseAuth.currentUser?.displayName ?: ""
+
+                                // ✅ Save userId IMMEDIATELY after authentication
+                                sharedPreferences.edit().putString("userId", userId).apply()
 
                                 firestore.collection("users").document(userId).get()
                                     .addOnSuccessListener { document ->
@@ -101,10 +105,10 @@ fun SignUpScreen(navController: NavController, sharedPreferences: SharedPreferen
                                                 .addOnSuccessListener {
                                                     println("✅ User profile created in Firestore")
 
-                                                    // ✅ Save userId in SharedPreferences
-                                                    sharedPreferences.edit().putString("userId", userId).apply()
-
-                                                    navController.navigate("user_details/$userId/$name/$email")
+                                                    // ✅ Redirect to Home
+                                                    navController.navigate("home") {
+                                                        popUpTo("signup") { inclusive = true }
+                                                    }
                                                 }
                                                 .addOnFailureListener { e ->
                                                     Toast.makeText(context, "Error saving user: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -113,14 +117,11 @@ fun SignUpScreen(navController: NavController, sharedPreferences: SharedPreferen
                                             println("✅ User already exists in Firestore")
                                             Toast.makeText(context, "Welcome back, $name!", Toast.LENGTH_SHORT).show()
 
-                                            // ✅ Save userId in SharedPreferences
-                                            sharedPreferences.edit().putString("userId", userId).apply()
-
+                                            // ✅ Redirect to Home
                                             navController.navigate("home") {
                                                 popUpTo("signup") { inclusive = true }
                                             }
                                         }
-
                                     }
                                     .addOnFailureListener { e ->
                                         Toast.makeText(context, "Error checking user: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -129,7 +130,10 @@ fun SignUpScreen(navController: NavController, sharedPreferences: SharedPreferen
                                 Toast.makeText(context, "Google Sign-In failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
                             }
                         }
-                } else {
+
+                }
+
+                else {
                     Toast.makeText(context, "Google Sign-In failed: No token received!", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {

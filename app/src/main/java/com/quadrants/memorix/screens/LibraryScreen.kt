@@ -89,9 +89,9 @@ fun LibraryScreen(navController: NavController, userId: String, activity: MainAc
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
-                    modifier = Modifier.padding(vertical = 8.dp)
+                    modifier = Modifier.padding(vertical = 10.dp, horizontal = 6.dp)
                 )
-                Spacer(modifier = Modifier.height(10.dp)) // ✅ This will now be visible
+                Spacer(modifier = Modifier.height(1.dp)) // ✅ This will now be visible
 
                 Column(
                     modifier = Modifier

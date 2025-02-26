@@ -9,10 +9,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.view.WindowCompat
+import androidx.navigation.compose.rememberNavController
 import com.quadrants.memorix.ui.theme.MemorixTheme
 import com.google.firebase.FirebaseApp
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
 
@@ -45,12 +49,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        FirebaseApp.initializeApp(this) // <-- Add this line
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         setContent {
             MemorixTheme {
-                AppNavigation(this)
+                AppNavigation(this) // ✅ Ensures navigation is properly set up
             }
         }
     }

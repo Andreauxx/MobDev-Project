@@ -14,50 +14,81 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import com.google.firebase.auth.FirebaseAuth
 import com.quadrants.memorix.R
 import com.quadrants.memorix.ui.theme.DarkViolet
 import com.quadrants.memorix.ui.theme.MediumViolet
 import kotlinx.coroutines.delay
+import android.content.Context
+import android.content.SharedPreferences
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun SplashScreen(navController: NavController) {
-    // Animation state for fade-in effect
+    val context = LocalContext.current
+    val sharedPreferences = remember {
+        context.getSharedPreferences("MemorixPrefs", Context.MODE_PRIVATE)
+    }
+
     var isVisible by remember { mutableStateOf(false) }
     val systemUiController = rememberSystemUiController()
 
-    // **Set Status Bar & Navigation Bar Colors**
+    // ✅ Set Status Bar & Navigation Bar Colors
     SideEffect {
         systemUiController.setStatusBarColor(MediumViolet, darkIcons = false)
-        systemUiController.setNavigationBarColor(DarkViolet, darkIcons = false) // ✅ Match the background
+        systemUiController.setNavigationBarColor(DarkViolet, darkIcons = false)
     }
-    // Trigger fade-in animation
+
     LaunchedEffect(Unit) {
         isVisible = true
-        delay(2500L) // Delay before navigating
-        navController.navigate("signup") {
-            popUpTo("splash") { inclusive = true } // Remove SplashScreen from backstack
+        delay(1500L) // Allow NavController to initialize
+
+        val user = FirebaseAuth.getInstance().currentUser
+        val savedUserId = sharedPreferences.getString("userId", null)
+        val hasSeenOnboarding = sharedPreferences.getBoolean("hasSeenOnboarding", false)
+
+        println("🟢 hasSeenOnboarding: $hasSeenOnboarding")
+        println("🟢 savedUserId: $savedUserId")
+        println("🟢 Firebase User: ${user?.uid}")
+
+        when {
+            // ✅ Only navigate to Home if Firebase User is authenticated and savedUserId exists
+            user != null && savedUserId != null -> {
+                navController.navigate("home") {
+                    popUpTo("splash") { inclusive = true }
+                }
+            }
+            // ✅ If onboarding hasn't been seen, go to onboarding
+            !hasSeenOnboarding -> {
+                navController.navigate("onboarding") {
+                    popUpTo("splash") { inclusive = true }
+                }
+            }
+            // ✅ If no user exists, force signup
+            else -> {
+                navController.navigate("signup") {
+                    popUpTo("splash") { inclusive = true }
+                }
+            }
         }
     }
 
+    // ✅ UI Layout
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    colors = listOf(
-                        MediumViolet, // Gradient start color
-                        DarkViolet // Gradient end color
-                    )
+                    colors = listOf(MediumViolet, DarkViolet)
                 )
             ),
-        contentAlignment = Alignment.Center // Center everything inside the Box
+        contentAlignment = Alignment.Center
     ) {
-        // Centered Animated Owl Icon
         AnimatedVisibility(
             visible = isVisible,
-            enter = fadeIn(animationSpec = tween(1500)) // Smooth fade-in
+            enter = fadeIn(animationSpec = tween(1500))
         ) {
-            Box(contentAlignment = Alignment.Center) { // Ensures the logo is centered
+            Box(contentAlignment = Alignment.Center) {
                 Image(
                     painter = painterResource(id = R.drawable.owl_icon),
                     contentDescription = "Owl Icon",

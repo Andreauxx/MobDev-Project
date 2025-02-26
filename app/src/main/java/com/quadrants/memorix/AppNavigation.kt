@@ -78,9 +78,17 @@ fun AppNavigation(activity: MainActivity) {
                 composable("onboarding") {
                     OnboardScreen(onFinish = {
                         sharedPreferences.edit().putBoolean("hasSeenOnboarding", true).apply()
-                        navController.navigate("home") {
-                            popUpTo("onboarding") {
-                                inclusive = true
+
+                        val userId = sharedPreferences.getString("userId", null)
+                        if (userId == null) {
+                            // ✅ Go to Signup if no user is logged in
+                            navController.navigate("signup") {
+                                popUpTo("onboarding") { inclusive = true }
+                            }
+                        } else {
+                            // ✅ Go to Home if user is logged in
+                            navController.navigate("home") {
+                                popUpTo("onboarding") { inclusive = true }
                             }
                         }
                     })
@@ -101,6 +109,9 @@ fun AppNavigation(activity: MainActivity) {
                 composable("select_content") { SelectContentScreen(navController) }
 
 
+                composable("edit_profile") {
+                    EditProfileScreen(navController)
+                }
 
 
 
