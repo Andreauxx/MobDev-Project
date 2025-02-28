@@ -19,19 +19,37 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.google.firebase.firestore.FirebaseFirestore
 import com.quadrants.memorix.MainActivity
 import com.quadrants.memorix.ui.theme.*
+import kotlinx.coroutines.tasks.await
 
 @Composable
-fun FolderDetailScreen(folderName: String, items: List<Map<String, Any>>, navController: NavController, isCreator: Boolean,   activity: MainActivity)
-{
+fun FolderDetailScreen(folderName: String, navController: NavController, isCreator: Boolean, activity: MainActivity) {
+    val firestore = FirebaseFirestore.getInstance()
+    var items by remember { mutableStateOf<List<Map<String, Any>>>(emptyList()) }
     var showBottomSheet by remember { mutableStateOf(false) }
 
+    // ✅ Reload flashcards every time the screen recomposes
+    LaunchedEffect(folderName) {
+        try {
+            val documents = firestore.collection("flashcard_sets")
+                .whereEqualTo("title", folderName)
+                .get()
+                .await()
+
+            val doc = documents.documents.firstOrNull()
+            doc?.let {
+                items = it["cards"] as? List<Map<String, Any>> ?: emptyList()
+            }
+        } catch (e: Exception) {
+            println("❌ Error loading flashcards: ${e.message}")
+        }
+    }
 
     Scaffold(
         bottomBar = {
-            BottomNavBar(navController = navController, currentScreen = "folderDetail", onPlusClick = { showBottomSheet = true }
-            )
+            BottomNavBar(navController = navController, currentScreen = "folderDetail", onPlusClick = { showBottomSheet = true })
         }
     ) { paddingValues ->
         Box(
@@ -49,26 +67,21 @@ fun FolderDetailScreen(folderName: String, items: List<Map<String, Any>>, navCon
                 Text(folderName, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = White)
 
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(items) { item ->
-                        val cards = item["cards"] as? List<Map<String, Any>> ?: listOf(item)
-                        cards.forEach { card ->
-                            when {
-                                // ✅ Flashcard
-                                card.containsKey("term") && card.containsKey("definition") -> {
-                                    FlashcardItem(item = card, navController = navController, isCreator = isCreator, folderName = folderName)
-                                }
-                                // ✅ Quiz Question
-                                card.containsKey("question") && card.containsKey("answers") -> {
-                                    QuestionItem(item = card, navController = navController, isCreator = isCreator, folderName = folderName)
-                                }
+                    items(items) { card ->
+                        when {
+                            card.containsKey("term") && card.containsKey("definition") -> {
+                                FlashcardItem(item = card, navController = navController, isCreator = isCreator, folderName = folderName)
+                            }
+                            card.containsKey("question") && card.containsKey("answers") -> {
+                                QuestionItem(item = card, navController = navController, isCreator = isCreator, folderName = folderName)
                             }
                         }
                     }
                 }
             }
         }
-
     }
+
     if (showBottomSheet) {
         ModalBottomSheet(
             onDismissRequest = { showBottomSheet = false }
@@ -78,15 +91,18 @@ fun FolderDetailScreen(folderName: String, items: List<Map<String, Any>>, navCon
     }
 }
 
+
 @Composable
 fun QuestionItem(item: Map<String, Any>, navController: NavController, isCreator: Boolean, folderName: String) {
     val question = item["question"]?.toString() ?: "No question available"
-    val answers = item["answers"] as? List<*> ?: emptyList<String>()
+    val answers = item["answers"] as? List<String> ?: emptyList()
 
-    val correctAnswerIndex = when (val index = item["correctAnswerIndex"] ?: item["correctAnswer"]) {
-        is Double -> index.toInt()
-        is Int -> index
-        else -> -1
+    val correctAnswerIndex = (item["correctAnswerIndex"] as? Number)?.toInt() ?: -1
+
+    val correctAnswer = if (correctAnswerIndex in answers.indices) {
+        answers[correctAnswerIndex].toString()
+    } else {
+        "N/A"
     }
 
     val explanation = item["explanation"]?.toString() ?: ""
@@ -97,7 +113,6 @@ fun QuestionItem(item: Map<String, Any>, navController: NavController, isCreator
         modifier = Modifier
             .fillMaxWidth()
             .padding(8.dp)
-            .clickable { navController.navigate("viewQuestion/${Uri.encode(question)}") }
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(text = question, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = White)
@@ -105,7 +120,7 @@ fun QuestionItem(item: Map<String, Any>, navController: NavController, isCreator
             if (answers.isNotEmpty()) {
                 answers.forEachIndexed { index, answer ->
                     Text(
-                        text = "${index + 1}. ${answer.toString()}",
+                        text = "${index + 1}. $answer",
                         fontSize = 16.sp,
                         color = if (index == correctAnswerIndex) Color.Green else White.copy(alpha = 0.7f)
                     )
@@ -114,7 +129,7 @@ fun QuestionItem(item: Map<String, Any>, navController: NavController, isCreator
 
             Text(
                 text = if (explanation.isNotEmpty()) "Explanation: $explanation"
-                else "✅ Correct Answer: ${answers.getOrNull(correctAnswerIndex)?.toString() ?: "N/A"}",
+                else "✅ Correct Answer: $correctAnswer",
                 fontSize = 14.sp,
                 color = White.copy(alpha = 0.7f),
                 modifier = Modifier.padding(top = 8.dp)
@@ -122,7 +137,11 @@ fun QuestionItem(item: Map<String, Any>, navController: NavController, isCreator
 
             if (isCreator) {
                 Button(
-                    onClick = { navController.navigate("editQuiz/${Uri.encode(folderName)}/${Uri.encode(question)}") }, // ✅ Fixed Edit Navigation
+                    onClick = {
+                        val encodedFolder = Uri.encode(folderName)
+                        val encodedTerm = Uri.encode(question)
+                        navController.navigate("editFlashcard/$encodedFolder/$encodedTerm")
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = MediumViolet),
                     modifier = Modifier.padding(top = 8.dp)
                 ) {
@@ -144,7 +163,7 @@ fun FlashcardItem(item: Map<String, Any>, navController: NavController, isCreato
         modifier = Modifier
             .fillMaxWidth()
             .padding(8.dp)
-            .clickable { navController.navigate("viewQuestion/${Uri.encode(term)}") }
+            //.clickable { navController.navigate("viewQuestion/${Uri.encode(term)}") }
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(text = term, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = White)

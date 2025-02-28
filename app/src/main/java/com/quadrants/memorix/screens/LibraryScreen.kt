@@ -66,6 +66,7 @@ fun LibraryScreen(navController: NavController, userId: String, activity: MainAc
     }
 
 
+
     Scaffold(
         bottomBar = {
             BottomNavBar(navController = navController, currentScreen = "folders", onPlusClick = onPlusClick)
@@ -115,7 +116,6 @@ fun LibraryScreen(navController: NavController, userId: String, activity: MainAc
                             )
                         }
                     }
-
                     LazyColumn(modifier = Modifier.padding(16.dp)) {
                         folders.filterKeys {
                             selectedCategory == "All" || it.equals(selectedCategory, ignoreCase = true)
@@ -128,12 +128,13 @@ fun LibraryScreen(navController: NavController, userId: String, activity: MainAc
                                     type = item["type"]?.toString() ?: "",
                                     itemCount = item["itemCount"] as? Int ?: 0,
                                     category = item["category"]?.toString() ?: "General",
-                                    items = item["questions"] as? List<Map<String, Any>> ?: emptyList(),
+                                    items = item["questions"] as? List<Map<String, Any>> ?: emptyList(), // ✅ Pass flattened list
                                     navController = navController
                                 ) { showAccessDenied = true }
                             }
                         }
                     }
+
                 }
             }
         }
@@ -149,15 +150,26 @@ fun LibraryScreen(navController: NavController, userId: String, activity: MainAc
 }
 
 fun mergeGroup(title: String, items: List<Map<String, Any>>, type: String, category: String): Map<String, Any> {
+    val totalItems = if (type == "flashcard") {
+        items.sumOf { (it["cards"] as? List<*>)?.size ?: 0 } // ✅ Count flashcards inside all documents
+    } else {
+        items.size // ✅ For quizzes, count the number of documents (since they are stored differently)
+    }
+
     return mapOf(
         "title" to title,
         "type" to type,
-        "category" to category,  // ✅ Added category
+        "category" to category,
         "isLocked" to (items.firstOrNull()?.get("isLocked") ?: false),
-        "itemCount" to items.size,
-        "questions" to items
+        "itemCount" to totalItems,  // ✅ Properly count flashcards or quizzes
+        "questions" to if (type == "flashcard") {
+            items.flatMap { it["cards"] as? List<Map<String, Any>> ?: emptyList() } // ✅ Flatten all flashcards
+        } else {
+            items // ✅ For quizzes, keep them as they are
+        }
     )
 }
+
 
 
 
@@ -181,28 +193,28 @@ fun FolderItem(
                 if (isLocked) {
                     onAccessDenied()
                 } else {
-                    val itemsJson = gson.toJson(items)
+                    val safeItems = items ?: emptyList()
+                    val itemsJson = gson.toJson(safeItems)
                     val encodedFolderName = Base64.encodeToString(folderName.toByteArray(), Base64.DEFAULT)
-                    val encodedItemsJson = Base64.encodeToString(itemsJson.toByteArray(), Base64.DEFAULT)
-                    val safeEncodedJson = Uri.encode(encodedItemsJson) // Prevents issues with special characters
+                    val encodedItemsJson = Uri.encode(Base64.encodeToString(itemsJson.toByteArray(), Base64.DEFAULT))
 
-
+                    println("📌 Navigating with: $encodedFolderName / $encodedItemsJson")
 
                     when (type) {
                         "flashcard" -> navController.navigate("folderDetail/flashcard/$encodedFolderName/$encodedItemsJson")
-
-                        "quiz" ->      navController.navigate("home?quizJson=$safeEncodedJson") // ✅ Pass Quiz Data to HomeScreen
-
+                        "quiz" -> navController.navigate("home?quizJson=$encodedItemsJson")
                     }
                 }
             }
-            .padding(vertical = 8.dp),
+
+        .padding(vertical = 8.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isLocked) Color.Gray else DarkMediumViolet
         ),
         elevation = CardDefaults.cardElevation(8.dp)
-    ) {
+    )
+    {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically

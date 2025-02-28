@@ -156,14 +156,20 @@ fun AppNavigation(activity: MainActivity) {
 
                         if (items.isNotEmpty()) {
                             FolderDetailScreen(
-                                decodedFolderName,
-                                items,
-                                navController,
+                                folderName = decodedFolderName,
+                                navController = navController,  // ✅ Correct order
                                 isCreator = true,
                                 activity = activity
                             )
                         }
+
                     }
+                }
+
+                composable("editFlashcard/{folderName}/{term}") { backStackEntry ->
+                    val folderName = backStackEntry.arguments?.getString("folderName") ?: ""
+                    val term = backStackEntry.arguments?.getString("term") ?: ""
+                    EditFlashcardScreen(navController, folderName, term)
                 }
 
 
@@ -190,7 +196,14 @@ fun AppNavigation(activity: MainActivity) {
                     }
 
                     if (items.isNotEmpty()) {
-                        FolderDetailScreen(folderName, items, navController, isCreator = true,  activity = activity)
+                        if (items.isNotEmpty()) {
+                            FolderDetailScreen(
+                                folderName,
+                                navController = navController,  // ✅ Correct order
+                                isCreator = true,
+                                activity = activity
+                            )
+                        }
                     }
                 }
             }

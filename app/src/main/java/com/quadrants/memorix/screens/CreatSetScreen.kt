@@ -236,23 +236,51 @@ fun CreateSetScreen(navController: NavController) {
                     Button(
                         onClick = {
                             if (title.isNotEmpty() && category.isNotEmpty() && flashcards.isNotEmpty()) {
-                                val setID = firestore.collection("flashcard_sets").document().id
-                                val setData = hashMapOf(
-                                    "title" to title,
-                                    "category" to category,
-                                    "setID" to setID,
-                                    "createdBy" to "",  // Replace with actual user ID
-                                    "isPublic" to true,
-                                    "cards" to flashcards
-                                )
+                                val setsCollection = firestore.collection("flashcard_sets")
 
-                                firestore.collection("flashcard_sets").document(setID)
-                                    .set(setData)
-                                    .addOnSuccessListener {
-                                        keyboardController?.hide()
-                                        focusManager.clearFocus()
-                                        navController.popBackStack()
+                                // 🔍 Check if a document with the same title & category exists
+                                setsCollection.whereEqualTo("title", title)
+                                    .whereEqualTo("category", category)
+                                    .get()
+                                    .addOnSuccessListener { querySnapshot ->
+                                        if (!querySnapshot.isEmpty) {
+                                            // ✅ Update existing document
+                                            val existingDoc = querySnapshot.documents.first()
+                                            val existingCards = existingDoc["cards"] as? MutableList<Map<String, Any>> ?: mutableListOf()
+                                            existingCards.addAll(flashcards)
+
+                                            setsCollection.document(existingDoc.id)
+                                                .update("cards", existingCards)
+                                                .addOnSuccessListener {
+                                                    println("✅ Flashcards added to existing document!")
+                                                    keyboardController?.hide()
+                                                    focusManager.clearFocus()
+                                                    navController.popBackStack()
+                                                }
+                                                .addOnFailureListener { e -> println("❌ Error updating document: ${e.message}") }
+                                        } else {
+                                            // ❌ No existing document found, create a new one
+                                            val newDocRef = setsCollection.document()
+                                            val setData = hashMapOf(
+                                                "title" to title,
+                                                "category" to category,
+                                                "setID" to newDocRef.id,
+                                                "createdBy" to "", // Replace with actual user ID
+                                                "isPublic" to true,
+                                                "cards" to flashcards
+                                            )
+
+                                            newDocRef.set(setData)
+                                                .addOnSuccessListener {
+                                                    println("✅ New flashcard set created!")
+                                                    keyboardController?.hide()
+                                                    focusManager.clearFocus()
+                                                    navController.popBackStack()
+                                                }
+                                                .addOnFailureListener { e -> println("❌ Error creating document: ${e.message}") }
+                                        }
                                     }
+                                    .addOnFailureListener { e -> println("❌ Firestore query error: ${e.message}") }
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = GoldenYellow),
@@ -262,6 +290,7 @@ fun CreateSetScreen(navController: NavController) {
                         Text("Save Set", fontSize = 16.sp, color = DarkViolet)
                     }
                 }
+
             }
         }
     }
