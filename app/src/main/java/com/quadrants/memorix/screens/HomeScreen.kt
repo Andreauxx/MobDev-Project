@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.util.Base64
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
@@ -59,9 +60,8 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.LinearEasing
-
-
-
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.google.gson.Gson
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -73,52 +73,75 @@ fun HomeScreen(
     onPlusClick: () -> Unit
 ) {
     val systemUiController = rememberSystemUiController()
-
-    // Set status bar color
     SideEffect {
-        systemUiController.setStatusBarColor(
-            color = DarkViolet,
-            darkIcons = false
-        )
+        systemUiController.setStatusBarColor(color = DarkViolet, darkIcons = false)
     }
-    var timeRemaining by remember { mutableStateOf(15) } // Default to 30 seconds
-    var timeUp by remember { mutableStateOf(false) }
 
     val firestore = FirebaseFirestore.getInstance()
     val firebaseAuth = FirebaseAuth.getInstance()
     val userId = firebaseAuth.currentUser?.uid
     var showBottomSheet by remember { mutableStateOf(false) }
 
-    // Track the current mode (flashcards or quiz)
-    var currentMode by remember { mutableStateOf(if (quizQuestions.isNotEmpty()) "quiz" else "flashcards") }
-    var activeQuiz by remember { mutableStateOf(quizQuestions) }
-    var quizCompleted by remember { mutableStateOf(false) } // Track quiz completion
-
+    var shouldRefresh by rememberSaveable { mutableStateOf(false) }
     var flashcards by remember { mutableStateOf<List<QuizQuestion>>(emptyList()) }
-    var streak by remember { mutableStateOf(0) }
     var isLoading by remember { mutableStateOf(true) }
 
+    val gson = remember { Gson() }
+    var quizData by remember { mutableStateOf<List<QuizQuestion>>(emptyList()) }
 
-    // Fetch flashcards if not in quiz mode
-    LaunchedEffect(Unit) {
-        if (userId != null && currentMode == "flashcards") {
+    // ✅ Retrieve Quiz Data from Navigation
+    val quizJson = navController.currentBackStackEntry?.arguments?.getString("quizJson")
+
+    LaunchedEffect(quizJson) {
+        if (!quizJson.isNullOrEmpty()) {
+            try {
+                val decodedJson = String(Base64.decode(quizJson, Base64.DEFAULT)) // ✅ Decode Base64
+                quizData = gson.fromJson(decodedJson, Array<QuizQuestion>::class.java).toList()
+                println("✅ Loaded Quiz Data: ${quizData.size} questions")
+
+                isLoading = false // ✅ Ensure loading state is updated
+
+            } catch (e: Exception) {
+                println("❌ Error Decoding Quiz JSON: ${e.message}")
+                isLoading = false // ✅ Prevent infinite loading if an error occurs
+            }
+        }
+    }
+
+
+    // Add shimmer effect animation
+    val transition = rememberInfiniteTransition(label = "shimmer")
+
+    val translateAnim by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f, // Adjust as needed for effect
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = 1200,
+                easing = LinearEasing
+            ),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmer"
+    )
+
+    // ✅ Fetch flashcards if no quiz is loaded
+    LaunchedEffect(userId, shouldRefresh) {
+        if (userId != null && quizData.isEmpty()) { // ✅ Fetch only if quizData is empty
+            isLoading = true
             firestore.collection("users").document(userId).get()
                 .addOnSuccessListener { document ->
                     val preferences = document.data?.get("user_preferences") as? Map<String, Any> ?: emptyMap()
-
-                    val selectedFolders = preferences["selectedStudyGuides"] as? List<String> ?: listOf("All")
-                    val selectedCategories = preferences["selectedFlashcardSets"] as? List<String> ?: listOf("All")
+                    val selectedSetsTermDefinition = preferences["selectedTermDefinitionSets"] as? List<String> ?: emptyList()
+                    val selectedSetsMultipleChoice = preferences["selectedMultipleChoiceSets"] as? List<String> ?: emptyList()
 
                     firestore.collection("flashcard_sets").get()
                         .addOnSuccessListener { result ->
                             flashcards = result.documents.flatMap { doc ->
-                                val folderTitle = doc.getString("title") ?: ""
-                                val category = doc.getString("category") ?: ""
+                                val title = doc.getString("title") ?: ""
                                 val cards = doc.get("cards") as? List<Map<String, Any>> ?: emptyList()
 
-                                if (selectedFolders.contains("All") || selectedFolders.contains(folderTitle) ||
-                                    selectedCategories.contains("All") || selectedCategories.contains(category)) {
-
+                                if (selectedSetsTermDefinition.contains(title) || selectedSetsMultipleChoice.contains(title)) {
                                     cards.mapNotNull {
                                         val type = it["type"] as? String
                                         when (type) {
@@ -155,60 +178,21 @@ fun HomeScreen(
         }
     }
 
-    // Reset mode after quiz completion
-    LaunchedEffect(quizCompleted) {
-        if (quizCompleted) {
-            currentMode = "flashcards"
-            activeQuiz = emptyList() // Clear the quiz data
-            quizCompleted = false // Reset quiz completion state
-        }
-    }
 
-
-    // Add shimmer effect animation
-    val transition = rememberInfiniteTransition(label = "shimmer")
-
-    val translateAnim by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1000f, // Adjust as needed for effect
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = 1200,
-                easing = LinearEasing
-            ),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "shimmer"
-    )
-    LaunchedEffect(quizQuestions) {
-        println("✅ HomeScreen received quizQuestions: ${quizQuestions.size}")
-
-        if (quizQuestions.isNotEmpty()) {
-            currentMode = "quiz"
-            activeQuiz = quizQuestions
-            isLoading = false // ✅ Ensure loading state is set to false
-            println("✅ Switching to quiz mode with ${activeQuiz.size} questions")
-        }
-    }
-
-
-    val pagerState = rememberPagerState {
-        if (currentMode == "quiz") activeQuiz.size else flashcards.size
-    }
+    val pagerState = rememberPagerState { if (quizData.isNotEmpty()) quizData.size else flashcards.size }
     val coroutineScope = rememberCoroutineScope()
 
-    
+    // ✅ Display Quiz Questions if Available
+    val isQuizMode = quizData.isNotEmpty()
+
     Scaffold(
         bottomBar = {
             BottomNavBar(
                 navController = navController,
                 currentScreen = "home",
-                onPlusClick = {
-                    showBottomSheet = true
-                    println("✅ Bottom Sheet Triggered! showBottomSheet = $showBottomSheet")
-                })
+                onPlusClick = { showBottomSheet = true }
+            )
         }
-
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -224,7 +208,7 @@ fun HomeScreen(
             ) {
                 SearchBar()
                 Spacer(modifier = Modifier.height(12.dp))
-                StreakCounter(streak)
+                StreakCounter(5) // Streak placeholder
                 Spacer(modifier = Modifier.height(24.dp))
 
                 if (isLoading) {
@@ -253,75 +237,43 @@ fun HomeScreen(
                         }
                     }
                 } else {
-                    when (currentMode) {
-                        "quiz" -> {
-                            VerticalPager(
-                                state = pagerState,
-                                userScrollEnabled = !timeUp
-                            // ✅ Disable scrolling if time is up
-                            ) { page ->
-                                val question = activeQuiz[page]
-                                MultipleChoiceCard(
-                                    flashcard = question,
-                                    pagerState = pagerState,
-                                    coroutineScope = coroutineScope,
-                                    onCorrect = { streak++ },
-                                    onWrong = { streak = 0 }
-                                )
-                            }
-
-                            if (pagerState.currentPage == activeQuiz.lastIndex) {
-                                Button(
-                                    onClick = {
-                                        quizCompleted = true
-                                        currentMode = "flashcards"
-                                        activeQuiz = emptyList() // Clear active quiz
-                                        println("✅ Returning to flashcards, resetting mode")
-                                    },
-                                    modifier = Modifier.align(Alignment.CenterHorizontally)
-                                ) {
-                                    Text("Return to Flashcards")
-                                }
-
-                            }
-                        }
-                        "flashcards" -> {
-                            VerticalPager(
-                                state = pagerState,
-                                modifier = Modifier.weight(1f)
-                            ) { page ->
-                                val flashcard = flashcards[page]
+                    VerticalPager(
+                        state = pagerState,
+                        modifier = Modifier.weight(1f)
+                    ) { page ->
+                        if (quizData.isNotEmpty()) {  // ✅ Ensure we are displaying quiz questions
+                            val quizQuestion = quizData[page]
+                            MultipleChoiceCard(quizQuestion, pagerState, coroutineScope, {}, {})
+                        } else {
+                            val flashcard = flashcards.getOrNull(page)
+                            if (flashcard != null) {
                                 if (flashcard.answers.size == 1) {
                                     AnimatedTermDefinitionCard(flashcard, pagerState, coroutineScope)
                                 } else {
-                                    MultipleChoiceCard(flashcard, pagerState, coroutineScope, { streak++ }, { streak = 0 })
+                                    MultipleChoiceCard(flashcard, pagerState, coroutineScope, {}, {})
                                 }
                             }
                         }
                     }
+
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    PaginationDots(pagerState, coroutineScope)
                 }
             }
-            if (showBottomSheet) {
-                println("✅ ModalBottomSheet is being displayed!")
 
-                ModalBottomSheet(
-                    onDismissRequest = {
-                        showBottomSheet = false
-                        println("🛠 Bottom Sheet Dismissed")
-                    }
-                ) {
+            if (showBottomSheet) {
+                ModalBottomSheet(onDismissRequest = { showBottomSheet = false }) {
                     BottomSheetContent(navController, activity) {
                         showBottomSheet = false
-                        println("🛠 Bottom Sheet Closed via Content")
                     }
                 }
             }
-
         }
-
     }
-
 }
+
+
 
 
 @Composable
@@ -514,6 +466,22 @@ fun AnimatedTermDefinitionCard(
                             color = Color.White.copy(alpha = 0.5f)
                         )
                     }
+                    else if (flashcard.explanation.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Explanation:",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = DarkViolet
+                        )
+                        Text(
+                            text = flashcard.explanation,
+                            fontSize = 16.sp,
+                            color = DarkViolet,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
                 }
             }
         }
@@ -723,7 +691,7 @@ fun MultipleChoiceCard(
 
 // Improved moveToNextQuestion with smoother transition
 suspend fun moveToNextQuestion(pagerState: PagerState, currentPage: Int, totalQuestions: Int) {
-    delay(1500)
+    delay(3000)
     if (currentPage < totalQuestions - 1) {
         pagerState.animateScrollToPage(
             page = currentPage + 1,
@@ -973,6 +941,50 @@ fun QuizQuestionSection(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+
+@Composable
+fun LoadingFlashcardsPlaceholder() {
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val shimmerAnim by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmer"
+    )
+
+    Column {
+        repeat(2) { // Show 2 skeleton cards
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .padding(vertical = 8.dp)
+                    .shadow(8.dp, RoundedCornerShape(16.dp)),
+                colors = CardDefaults.cardColors(containerColor = DarkieViolet)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(
+                                    Color(0xFF4B2A72).copy(alpha = 0.3f),
+                                    Color(0xFF5C3998).copy(alpha = 0.5f),
+                                    Color(0xFF4B2A72).copy(alpha = 0.3f)
+                                ),
+                                start = Offset(0f, 0f),
+                                end = Offset(shimmerAnim, 0f)
+                            )
+                        )
+                )
             }
         }
     }

@@ -35,35 +35,36 @@ fun SelectContentScreen(navController: NavController) {
     val firebaseAuth = FirebaseAuth.getInstance()
     val userId = firebaseAuth.currentUser?.uid
 
-    var selectedStudyGuides by remember { mutableStateOf<Set<String>>(setOf()) }
-    var selectedFlashcardSets by remember { mutableStateOf<Set<String>>(setOf()) }
+    var selectedTermDefinitionSets by remember { mutableStateOf<Set<String>>(setOf()) }
+    var selectedMultipleChoiceSets by remember { mutableStateOf<Set<String>>(setOf()) }
 
-    var studyGuideCategories by remember { mutableStateOf<List<String>>(emptyList()) }
-    var flashcardSetCategories by remember { mutableStateOf<List<String>>(emptyList()) }
+    var termDefinitionSets by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) } // (Title, Category)
+    var multipleChoiceSets by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) } // (Title, Category)
 
-    var isStudyGuideExpanded by remember { mutableStateOf(false) }
-    var isFlashcardSetExpanded by remember { mutableStateOf(false) }
+    var isTermDefinitionExpanded by remember { mutableStateOf(false) }
+    var isMultipleChoiceExpanded by remember { mutableStateOf(false) }
 
-    // Fetch categories for study guides and flashcard sets
+    // ✅ Fetch Flashcard Sets by Type
     LaunchedEffect(Unit) {
         firestore.collection("flashcard_sets").get().addOnSuccessListener { result ->
-            val studyGuideSet = mutableSetOf<String>()
-            val flashcardSetSet = mutableSetOf<String>()
+            val termDefinitionList = mutableListOf<Pair<String, String>>()
+            val multipleChoiceList = mutableListOf<Pair<String, String>>()
 
             result.documents.forEach { document ->
-                val category = document.getString("category") ?: "Unknown Category"
+                val title = document.getString("title") ?: "Untitled"
+                val category = document.getString("category") ?: "Uncategorized"
                 val cards = document.get("cards") as? List<Map<String, Any>> ?: emptyList()
 
                 if (cards.any { it["type"] == "term-definition" }) {
-                    studyGuideSet.add(category)
+                    termDefinitionList.add(title to category)
                 }
                 if (cards.any { it["type"] == "multiple-choice" }) {
-                    flashcardSetSet.add(category)
+                    multipleChoiceList.add(title to category)
                 }
             }
 
-            studyGuideCategories = studyGuideSet.toList().sorted()
-            flashcardSetCategories = flashcardSetSet.toList().sorted()
+            termDefinitionSets = termDefinitionList.sortedBy { it.first }
+            multipleChoiceSets = multipleChoiceList.sortedBy { it.first }
         }
     }
 
@@ -79,7 +80,7 @@ fun SelectContentScreen(navController: NavController) {
                 Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = White)
             }
             Text(
-                "Select Content for Home Screen",
+                "Select Flashcards for Home Screen",
                 fontSize = 24.sp,
                 color = White,
                 fontWeight = FontWeight.Bold,
@@ -89,42 +90,44 @@ fun SelectContentScreen(navController: NavController) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Study Guides Card
-        ContentSelectionCard(
-            title = "Study Guides",
-            isExpanded = isStudyGuideExpanded,
-            onExpandToggle = { isStudyGuideExpanded = !isStudyGuideExpanded },
-            categories = studyGuideCategories,
-            selectedCategories = selectedStudyGuides,
-            onCategoryToggle = { category, selected ->
-                selectedStudyGuides = if (selected) selectedStudyGuides + category else selectedStudyGuides - category
+        // ✅ Term-Definition Flashcard Selection
+        FlashcardSelectionCard(
+            title = "Term-Definition Flashcards",
+            icon = Icons.Default.Folder,
+            isExpanded = isTermDefinitionExpanded,
+            onExpandToggle = { isTermDefinitionExpanded = !isTermDefinitionExpanded },
+            sets = termDefinitionSets,
+            selectedSets = selectedTermDefinitionSets,
+            onSetToggle = { setTitle, selected ->
+                selectedTermDefinitionSets = if (selected) selectedTermDefinitionSets + setTitle else selectedTermDefinitionSets - setTitle
             }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Flashcard Sets Card
-        ContentSelectionCard(
-            title = "Flashcard Sets",
-            isExpanded = isFlashcardSetExpanded,
-            onExpandToggle = { isFlashcardSetExpanded = !isFlashcardSetExpanded },
-            categories = flashcardSetCategories,
-            selectedCategories = selectedFlashcardSets,
-            onCategoryToggle = { category, selected ->
-                selectedFlashcardSets = if (selected) selectedFlashcardSets + category else selectedFlashcardSets - category
+        // ✅ Multiple-Choice Flashcard Selection
+        FlashcardSelectionCard(
+            title = "Multiple-Choice Flashcards",
+            icon = Icons.Default.QuestionAnswer,
+            isExpanded = isMultipleChoiceExpanded,
+            onExpandToggle = { isMultipleChoiceExpanded = !isMultipleChoiceExpanded },
+            sets = multipleChoiceSets,
+            selectedSets = selectedMultipleChoiceSets,
+            onSetToggle = { setTitle, selected ->
+                selectedMultipleChoiceSets = if (selected) selectedMultipleChoiceSets + setTitle else selectedMultipleChoiceSets - setTitle
             }
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Save Button
+        // ✅ Save Button
         Button(
             onClick = {
                 if (userId != null) {
                     val preferences = mapOf(
                         "user_preferences" to mapOf(
-                            "selectedStudyGuides" to selectedStudyGuides.toList(),
-                            "selectedFlashcardSets" to selectedFlashcardSets.toList()
+                            "selectedTermDefinitionSets" to selectedTermDefinitionSets.toList(),
+                            "selectedMultipleChoiceSets" to selectedMultipleChoiceSets.toList()
                         )
                     )
 
@@ -132,6 +135,7 @@ fun SelectContentScreen(navController: NavController) {
                         .set(preferences, SetOptions.merge())
                         .addOnSuccessListener {
                             Toast.makeText(navController.context, "Preferences saved!", Toast.LENGTH_SHORT).show()
+                            navController.previousBackStackEntry?.savedStateHandle?.set("refreshHome", true) // ✅ Notify HomeScreen
                             navController.popBackStack()
                         }
                         .addOnFailureListener {
@@ -144,17 +148,20 @@ fun SelectContentScreen(navController: NavController) {
         ) {
             Text("Save", color = DarkViolet)
         }
+
+
     }
 }
 
 @Composable
 fun ContentSelectionCard(
     title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     isExpanded: Boolean,
     onExpandToggle: () -> Unit,
     categories: List<String>,
-    selectedCategories: Set<String>,
-    onCategoryToggle: (String, Boolean) -> Unit
+    isSelected: Boolean,
+    onSelectionToggle: () -> Unit
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
@@ -167,7 +174,60 @@ fun ContentSelectionCard(
                 modifier = Modifier.padding(12.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Folder,
+                    imageVector = icon,
+                    contentDescription = "$title Icon",
+                    tint = GoldenYellow,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(title, fontSize = 18.sp, color = White, modifier = Modifier.weight(1f))
+
+                // ✅ Selection Checkbox
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = { onSelectionToggle() },
+                    colors = CheckboxDefaults.colors(checkedColor = GoldenYellow)
+                )
+            }
+            if (isExpanded) {
+                Column {
+                    categories.forEach { category ->
+                        Text(
+                            text = "• $category",
+                            fontSize = 16.sp,
+                            color = White,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+fun FlashcardSelectionCard(
+    title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    isExpanded: Boolean,
+    onExpandToggle: () -> Unit,
+    sets: List<Pair<String, String>>, // (Title, Category)
+    selectedSets: Set<String>,
+    onSetToggle: (String, Boolean) -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF4B2A72)),
+        modifier = Modifier.fillMaxWidth().clickable { onExpandToggle() }.padding(vertical = 6.dp).clip(RoundedCornerShape(12.dp))
+    ) {
+        Column {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(12.dp)
+            ) {
+                Icon(
+                    imageVector = icon,
                     contentDescription = "$title Icon",
                     tint = GoldenYellow,
                     modifier = Modifier.size(24.dp)
@@ -177,15 +237,18 @@ fun ContentSelectionCard(
             }
             if (isExpanded) {
                 Column {
-                    categories.forEach { category ->
+                    sets.forEach { (setTitle, category) ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)
                         ) {
-                            Text(category, fontSize = 18.sp, color = White, modifier = Modifier.weight(1f))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(setTitle, fontSize = 16.sp, color = White, fontWeight = FontWeight.Bold)
+                                Text("Category: $category", fontSize = 14.sp, color = White.copy(alpha = 0.7f))
+                            }
                             Checkbox(
-                                checked = selectedCategories.contains(category),
-                                onCheckedChange = { checked -> onCategoryToggle(category, checked) },
+                                checked = selectedSets.contains(setTitle),
+                                onCheckedChange = { checked -> onSetToggle(setTitle, checked) },
                                 colors = CheckboxDefaults.colors(checkedColor = GoldenYellow)
                             )
                         }
