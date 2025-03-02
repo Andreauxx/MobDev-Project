@@ -94,6 +94,20 @@ fun AppNavigation(activity: MainActivity) {
                     })
                 }
 
+                composable("user_details/{userId}/{name}/{email}") { backStackEntry ->
+                    val userId = backStackEntry.arguments?.getString("userId") ?: ""
+                    val name = backStackEntry.arguments?.getString("name") ?: ""
+                    val email = backStackEntry.arguments?.getString("email") ?: ""
+                    UserDetailsScreen(navController, userId, name, email)
+                }
+
+                composable("interest_selection/{userId}") { backStackEntry ->
+                    val userId = backStackEntry.arguments?.getString("userId") ?: ""
+                    InterestsSelectionScreen(navController, userId)
+                }
+
+
+
                 // Main Screens
                 composable("home") { HomeScreen(navController, activity, onPlusClick = { showBottomSheet = true }) }
                 composable("folders") {

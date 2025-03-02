@@ -51,6 +51,10 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview:1.5.0")
     implementation("androidx.compose.foundation:foundation:1.5.0")
 
+
+    implementation ("com.google.android.gms:play-services-mlkit-text-recognition:18.0.2")
+
+    implementation("com.squareup.okhttp3:okhttp:4.12.0") // or the latest version
     //DEPENDENCY FOR CHATGPT
     implementation ("com.squareup.okhttp3:okhttp:4.9.3") // For API calls
     implementation ("com.google.code.gson:gson:2.8.8")   // For JSON parsing

@@ -105,10 +105,12 @@ fun SignUpScreen(navController: NavController, sharedPreferences: SharedPreferen
                                                 .addOnSuccessListener {
                                                     println("✅ User profile created in Firestore")
 
-                                                    // ✅ Redirect to Home
-                                                    navController.navigate("home") {
+                                                    // ✅ Redirect to Interest Selection Screen for new users
+                                                    navController.navigate("user_details/$userId/$name/$email") {
                                                         popUpTo("signup") { inclusive = true }
                                                     }
+
+
                                                 }
                                                 .addOnFailureListener { e ->
                                                     Toast.makeText(context, "Error saving user: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -117,15 +119,13 @@ fun SignUpScreen(navController: NavController, sharedPreferences: SharedPreferen
                                             println("✅ User already exists in Firestore")
                                             Toast.makeText(context, "Welcome back, $name!", Toast.LENGTH_SHORT).show()
 
-                                            // ✅ Redirect to Home
+                                            // ✅ Redirect to Home if user exists
                                             navController.navigate("home") {
                                                 popUpTo("signup") { inclusive = true }
                                             }
                                         }
                                     }
-                                    .addOnFailureListener { e ->
-                                        Toast.makeText(context, "Error checking user: ${e.message}", Toast.LENGTH_SHORT).show()
-                                    }
+
                             } else {
                                 Toast.makeText(context, "Google Sign-In failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
                             }
@@ -191,13 +191,14 @@ fun SignUpScreen(navController: NavController, sharedPreferences: SharedPreferen
                 onClick = {
                     oneTapClient.beginSignIn(signInRequest)
                         .addOnSuccessListener { result ->
-                            googleSignInLauncher.launch(
-                                IntentSenderRequest.Builder(result.pendingIntent).build()
-                            )
+                            println("🔹 Google Sign-In Success! Launching chooser...")
+                            googleSignInLauncher.launch(IntentSenderRequest.Builder(result.pendingIntent).build())
                         }
-                        .addOnFailureListener {
-                            Toast.makeText(context, "Google Sign-Up Failed", Toast.LENGTH_SHORT).show()
+                        .addOnFailureListener { e ->
+                            println("❌ Google Sign-In Failed: ${e.message}")
+                            Toast.makeText(context, "Google Sign-In Failed: ${e.message}", Toast.LENGTH_LONG).show()
                         }
+
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = DarkieViolet),
                 shape = RoundedCornerShape(12.dp),

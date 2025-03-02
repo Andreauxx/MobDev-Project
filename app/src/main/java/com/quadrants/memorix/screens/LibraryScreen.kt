@@ -40,6 +40,14 @@ fun LibraryScreen(navController: NavController, userId: String, activity: MainAc
     var showBottomSheet by remember { mutableStateOf(false) }
     val categories = listOf("All", "Flashcard Sets", "Quizzes")
     var selectedCategory by remember { mutableStateOf("All") }
+    var generatedContent by remember { mutableStateOf<List<Map<String, Any>>>(emptyList()) }
+
+    // ✅ Fetch generated AI quizzes and flashcards
+    LaunchedEffect(Unit) {
+        fetchGeneratedContent { contentList ->
+            generatedContent = contentList
+        }
+    }
 
     // ✅ Firestore Query with Grouping by Title
     LaunchedEffect(Unit) {
@@ -168,6 +176,30 @@ fun mergeGroup(title: String, items: List<Map<String, Any>>, type: String, categ
             items // ✅ For quizzes, keep them as they are
         }
     )
+}
+
+private fun fetchGeneratedContent(onContentFetched: (List<Map<String, Any>>) -> Unit) {
+    val firestore = FirebaseFirestore.getInstance()
+
+    firestore.collection("cards")
+        .get()
+        .addOnSuccessListener { cardDocs ->
+            val flashcards = cardDocs.documents.mapNotNull { it.data }
+
+            firestore.collection("quiz_questions")
+                .get()
+                .addOnSuccessListener { quizDocs ->
+                    val quizzes = quizDocs.documents.mapNotNull { it.data }
+
+                    onContentFetched(flashcards + quizzes) // ✅ Merge flashcards & quizzes
+                }
+                .addOnFailureListener { e ->
+                    println("❌ Error fetching quizzes: ${e.message}")
+                }
+        }
+        .addOnFailureListener { e ->
+            println("❌ Error fetching flashcards: ${e.message}")
+        }
 }
 
 

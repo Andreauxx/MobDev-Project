@@ -14,11 +14,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "661088903021-9qthd5otrkucibmi1mj87ufkcilupfv3.apps.googleusercontent.com",
+          "client_id": "661088903021-j0bfccbvuev7jksks9t3guquohsfoi4v.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.quadrants.memorix",
-            "certificate_hash": "9f0998cb2b72c84b91d3241584d0ababb1823375"
+            "certificate_hash": "bc08d99e1acfcde493345e818705d9bae5ef6685"
           }
         },
         {

@@ -38,6 +38,8 @@ fun InterestsSelectionScreen(navController: NavController, userId: String) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            Spacer(modifier = Modifier.height(16.dp))
+
             Text(
                 text = "Select Your Interests",
                 fontSize = 24.sp,
@@ -88,7 +90,10 @@ fun InterestsSelectionScreen(navController: NavController, userId: String) {
                             .update("preferences.subjects", selectedSubjects)
                             .addOnSuccessListener {
                                 Toast.makeText(context, "Preferences Saved!", Toast.LENGTH_SHORT).show()
-                                navController.navigate("onboarding") // ✅ Navigate to Onboarding
+                                navController.navigate("home") {
+                                    popUpTo("interest_selection") { inclusive = true }
+                                }
+
                             }
                             .addOnFailureListener { e ->
                                 Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
