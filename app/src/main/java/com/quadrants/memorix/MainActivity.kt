@@ -31,7 +31,10 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import android.os.ParcelFileDescriptor
+import android.text.InputType
 import android.util.Base64
+import android.widget.EditText
+import android.widget.LinearLayout
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import okhttp3.MediaType.Companion.toMediaType
@@ -126,46 +129,123 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleFileUpload(uri: Uri) {
-        val options = arrayOf("Generate Flashcards", "Generate Quiz")
+        val context = this
+        val layout = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(50, 20, 50, 20)
+        }
 
-        AlertDialog.Builder(this)
-            .setTitle("Choo se Generation Type")
-            .setItems(options) { _, which ->
-                val generationType = if (which == 0) "flashcards" else "quiz"
+        val titleInput = EditText(context).apply { hint = "Enter Title" }
+        val categoryInput = EditText(context).apply { hint = "Enter Category" }
+        val numFlashcardsInput = EditText(context).apply {
+            hint = "Number of Flashcards"; inputType = InputType.TYPE_CLASS_NUMBER
+        }
+        val numQuizQuestionsInput = EditText(context).apply {
+            hint = "Number of Quiz Questions"; inputType = InputType.TYPE_CLASS_NUMBER
+        }
+
+        layout.addView(titleInput)
+        layout.addView(categoryInput)
+        layout.addView(numFlashcardsInput)
+        layout.addView(numQuizQuestionsInput)
+
+        var generationType = "flashcards" // Default value
+
+        AlertDialog.Builder(context)
+            .setTitle("Customize Generation")
+            .setView(layout)
+            .setSingleChoiceItems(arrayOf("Generate Flashcards", "Generate Quiz"), -1) { _, which ->
+                generationType = if (which == 0) "flashcards" else "quiz"
+            }
+            .setPositiveButton("Generate") { _, _ ->
+                val title = titleInput.text.toString().ifEmpty { "Untitled Set" }
+                val category = categoryInput.text.toString().ifEmpty { "General Knowledge" }
+                val numFlashcards = numFlashcardsInput.text.toString().toIntOrNull() ?: 10
+                val numQuizQuestions = numQuizQuestionsInput.text.toString().toIntOrNull() ?: 5
+
                 lifecycleScope.launch {
-                    val extractedText = extractTextFromFile(uri)
-                    if (extractedText.isNotEmpty()) {
-                        generateQuizOrFlashcards(extractedText, generationType)
+                    val file = uriToFile(uri)
+                    file?.let {
+                        val extractedText = extractTextFromFile(Uri.fromFile(it))
+                        if (extractedText.isNotEmpty()) {
+                            generateQuizOrFlashcards(
+                                extractedText,
+                                generationType,
+                                title,
+                                category,
+                                numFlashcards,
+                                numQuizQuestions
+                            )
+                        }
                     }
                 }
             }
+            .setNegativeButton("Cancel", null)
             .show()
     }
 
-    private fun handleCapturedImage(bitmap: Bitmap) {
-        val options = arrayOf("Generate Flashcards", "Generate Quiz")
 
-        AlertDialog.Builder(this)
-            .setTitle("Choose Generation Type")
-            .setItems(options) { _, which ->
-                val generationType = if (which == 0) "flashcards" else "quiz"
+    private fun handleCapturedImage(bitmap: Bitmap) {
+        val context = this
+        val layout = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(50, 20, 50, 20)
+        }
+
+        val titleInput = EditText(context).apply { hint = "Enter Title" }
+        val categoryInput = EditText(context).apply { hint = "Enter Category" }
+        val numFlashcardsInput = EditText(context).apply {
+            hint = "Number of Flashcards"; inputType = InputType.TYPE_CLASS_NUMBER
+        }
+        val numQuizQuestionsInput = EditText(context).apply {
+            hint = "Number of Quiz Questions"; inputType = InputType.TYPE_CLASS_NUMBER
+        }
+
+        layout.addView(titleInput)
+        layout.addView(categoryInput)
+        layout.addView(numFlashcardsInput)
+        layout.addView(numQuizQuestionsInput)
+
+        var generationType = "flashcards" // Default value
+
+        AlertDialog.Builder(context)
+            .setTitle("Customize Generation")
+            .setView(layout)
+            .setSingleChoiceItems(arrayOf("Generate Flashcards", "Generate Quiz"), -1) { _, which ->
+                generationType = if (which == 0) "flashcards" else "quiz"
+            }
+            .setPositiveButton("Generate") { _, _ ->
+                val title = titleInput.text.toString().ifEmpty { "Untitled Set" }
+                val category = categoryInput.text.toString().ifEmpty { "General Knowledge" }
+                val numFlashcards = numFlashcardsInput.text.toString().toIntOrNull() ?: 10
+                val numQuizQuestions = numQuizQuestionsInput.text.toString().toIntOrNull() ?: 5
+
                 lifecycleScope.launch {
                     val file = bitmapToFile(bitmap)
                     file?.let {
                         val extractedText = extractTextFromFile(Uri.fromFile(it))
                         if (extractedText.isNotEmpty()) {
-                            generateQuizOrFlashcards(extractedText, generationType)
+                            generateQuizOrFlashcards(
+                                extractedText,
+                                generationType,
+                                title,
+                                category,
+                                numFlashcards,
+                                numQuizQuestions
+                            )
                         }
                     }
                 }
             }
+            .setNegativeButton("Cancel", null)
             .show()
     }
 
     private suspend fun extractTextFromFile(uri: Uri): String {
         return withContext(Dispatchers.IO) {
             try {
-                val apiKey = "AIzaSyAIRoBDg2FPihYgqtnVZ52zM2QbrY2UL2I"  // Replace with your actual API Key
+                val apiKey =
+                    "AIzaSyAIRoBDg2FPihYgqtnVZ52zM2QbrY2UL2I"  // Replace with your actual API Key
                 val apiUrl = "https://vision.googleapis.com/v1/images:annotate?key=$apiKey"
 
                 val file = uriToFile(uri) ?: return@withContext ""
@@ -194,7 +274,8 @@ class MainActivity : ComponentActivity() {
                             ?.optJSONArray("textAnnotations")
 
                         if (textAnnotations != null && textAnnotations.length() > 0) {
-                            val extractedText = textAnnotations.optJSONObject(0)?.optString("description", "")
+                            val extractedText =
+                                textAnnotations.optJSONObject(0)?.optString("description", "")
                             println("✅ Extracted Text: $extractedText")
                             return@withContext extractedText ?: ""
                         } else {
@@ -242,7 +323,8 @@ class MainActivity : ComponentActivity() {
     private fun isPdfValid(file: File): Boolean {
         var parcelFileDescriptor: ParcelFileDescriptor? = null
         return try {
-            parcelFileDescriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+            parcelFileDescriptor =
+                ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
             PdfRenderer(parcelFileDescriptor).use { pdfRenderer ->
                 pdfRenderer.pageCount > 0
             }
@@ -283,62 +365,45 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun generateQuizOrFlashcards(text: String, type: String) {
-        val generationType = type
+
+    private fun generateQuizOrFlashcards(
+        text: String,
+        generationType: String,
+        title: String,
+        category: String,
+        numFlashcards: Int,
+        numQuizQuestions: Int
+    ) {
         val apiKey = "AIzaSyCJpVfHH6SDX604xS_MSAfwA8UNlPCHtGE"  // ✅ Replace this with a working key
-        val modelName = "gemini-1.5-flash-001"  // ✅ Use an available model
+        val modelName = "gemini-1.5-flash-001"
         val url = "https://generativelanguage.googleapis.com/v1/models/$modelName:generateContent?key=$apiKey"
 
-        // ✅ Clean and preprocess the input text
-        val cleanedText = text
-            .replace("[^a-zA-Z0-9\\s.]".toRegex(), "") // Remove special characters
-            .replace("\\s+".toRegex(), " ") // Remove extra spaces
-            .trim()
-
-        // ✅ Validate the input text
-        if (cleanedText.isEmpty() || cleanedText.length < 10) {
-            println("❌ Input text is too short or invalid.")
-            return
-        }
-
-        // ✅ AI Instruction: Explicitly ask for Flashcards or Quiz
         val prompt = """
-    You are an AI that generates **educational study materials** based on text input. 
-    Given the following input text, generate **$generationType** in a structured JSON format:
-    
-    If **flashcards**, create a **list of term-definition pairs** and **multiple-choice questions**.
-    If **quiz**, create **only multiple-choice questions** with **a 30-second time limit per question**.
-    
+    Generate a study set titled **"$title"** under the category **"$category"**.
+
+    - If **flashcards**: Generate **$numFlashcards** flashcards (half multiple-choice, half term-definition).
+    - If **quiz**: Generate **$numQuizQuestions** multiple-choice questions.
+
     Example Output:
+    ```json
     {
       "cards": [
-        {
-          "type": "multiple-choice",
-          "question": "What is the capital of France?",
-          "answers": ["Berlin", "Madrid", "Paris", "Rome"],
-          "correctAnswerIndex": 2,
-          "explanation": "Paris is the capital of France."
-        },
-        {
-          "type": "term-definition",
-          "term": "Photosynthesis",
-          "definition": "The process by which green plants and some other organisms use sunlight to synthesize foods from carbon dioxide and water."
-        }
+        { "type": "multiple-choice", "question": "What is the capital of France?", "answers": ["Berlin", "Madrid", "Paris", "Rome"], "correctAnswerIndex": 2 },
+        { "type": "term-definition", "term": "Photosynthesis", "definition": "The process where plants convert sunlight into energy." }
       ]
     }
-    
-    Now, generate structured $generationType from the following text:
-    $cleanedText
-""".trimIndent()
+    ```
+
+    Now generate the requested content based on this text:
+    $text
+    """.trimIndent()
 
         val jsonBody = JSONObject().apply {
             put("contents", JSONArray().apply {
                 put(JSONObject().apply {
                     put("role", "user")
                     put("parts", JSONArray().apply {
-                        put(JSONObject().apply {
-                            put("text", prompt) // ✅ Pass the AI instruction prompt
-                        })
+                        put(JSONObject().apply { put("text", prompt) })
                     })
                 })
             })
@@ -353,10 +418,6 @@ class MainActivity : ComponentActivity() {
             .post(requestBody)
             .build()
 
-        println("🔍 Using API Key: $apiKey") // ✅ Debug API Key
-        println("🔍 Request URL: $url") // ✅ Debug Request URL
-        println("🔍 Request Body: $jsonBody") // ✅ Debug Request Body
-
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 println("❌ Gemini API Request Failed: ${e.message}")
@@ -368,46 +429,52 @@ class MainActivity : ComponentActivity() {
                     println("✅ Gemini API Raw Response: $responseBody")
 
                     if (!responseBody.isNullOrEmpty()) {
-                        val jsonResponse = JSONObject(responseBody)
-                        if (jsonResponse.has("error")) {
-                            val error = jsonResponse.optJSONObject("error")
-                            println("❌ Gemini API Error: ${error?.optString("message")}")
-                        } else {
+                        try {
+                            val jsonResponse = JSONObject(responseBody)
                             val aiGeneratedData = jsonResponse.optJSONArray("candidates")
                                 ?.optJSONObject(0)
                                 ?.optJSONObject("content")
                                 ?.optJSONArray("parts")
                                 ?.optJSONObject(0)
-                                ?.optString("text", "No response from Gemini")
+                                ?.optString("text", "")
 
                             if (!aiGeneratedData.isNullOrEmpty()) {
-                                // ✅ Extract JSON from Markdown syntax
+                                // ✅ Remove Markdown-style code block
                                 val cleanedJson = aiGeneratedData
                                     .replace("```json", "") // Remove Markdown start
                                     .replace("```", "") // Remove Markdown end
-                                    .trim() // Remove leading/trailing whitespace
+                                    .trim()
 
-                                try {
-                                    // ✅ Parse the cleaned JSON string
-                                    val parsedJson = JSONObject(cleanedJson)
-                                    println("✅ Parsed Gemini Response: $parsedJson")
+                                // ✅ Parse the cleaned JSON string
+                                val parsedJson = JSONObject(cleanedJson)
+                                println("✅ Parsed Gemini Response: $parsedJson")
 
+                                // ✅ Extract the `cards` array safely
+                                val cardsArray = parsedJson.optJSONArray("cards")
+                                if (cardsArray != null && cardsArray.length() > 0) {
                                     // ✅ Save the generated data to Firestore
-                                    saveGeneratedDataToFirestore(parsedJson, generationType)
-                                } catch (e: JSONException) {
-                                    println("❌ Error parsing JSON: ${e.message}")
+                                    saveGeneratedDataToFirestore(parsedJson.toString(), title, category, generationType)
+                                } else {
+                                    println("❌ No flashcards or quizzes found in API response.")
                                 }
                             } else {
-                                println("❌ No valid AI-generated content found")
+                                println("❌ AI-generated data is empty.")
                             }
+
+                        } catch (e: JSONException) {
+                            println("❌ Error parsing JSON: ${e.message}")
                         }
                     } else {
-                        println("❌ Gemini API returned an empty response")
+                        println("❌ API Response was empty.")
                     }
                 }
             }
         })
     }
+
+
+
+
 
 
     private fun listModels() {
@@ -434,128 +501,84 @@ class MainActivity : ComponentActivity() {
     }
 
 
+    private fun saveGeneratedDataToFirestore(
+        generatedDataString: String, // ✅ Expect a string instead of JSONObject
+        title: String,
+        category: String,
+        generationType: String
+    ) {
+        try {
+            val parsedJson = JSONObject(generatedDataString) // ✅ Parse inside function
+            val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+            val firestore = FirebaseFirestore.getInstance()
 
+            val setID = firestore.collection(if (generationType == "quiz") "quiz_questions" else "flashcard_sets").document().id
+            val cardsArray = parsedJson.optJSONArray("cards") ?: JSONArray()
 
+            if (cardsArray.length() == 0) {
+                println("❌ No flashcards or quiz data found.")
+                return
+            }
 
+            val cards: MutableList<Map<String, Any>> = mutableListOf()
 
-    private fun saveGeneratedDataToFirestore(generatedData: JSONObject, generationType: String) {
-        val user = FirebaseAuth.getInstance().currentUser
-        if (user == null) {
-            println("❌ User is not authenticated. Cannot save data.")
-            return
-        }
-
-        val userId = user.uid // ✅ Get authenticated user's ID
-        val firestore = FirebaseFirestore.getInstance()
-
-        // ✅ Extract category dynamically
-        val category = generatedData.optString("category", "General Knowledge") // Default if not found
-        val title = category // ✅ Use category as title
-
-        val setID = firestore.collection(if (generationType == "quiz") "quiz_questions" else "flashcard_sets").document().id
-
-        val cards: MutableList<Map<String, Any>> = mutableListOf()
-
-        val aiGeneratedCards = generatedData.optJSONArray("cards")
-
-        if (aiGeneratedCards != null && aiGeneratedCards.length() > 0) {
-            for (i in 0 until aiGeneratedCards.length()) {
-                val card = aiGeneratedCards.optJSONObject(i)
+            for (i in 0 until cardsArray.length()) {
+                val card = cardsArray.optJSONObject(i)
                 if (card != null) {
-                    val type = card.optString("type")
-
+                    val type = card.optString("type", "")
                     if (type == "multiple-choice") {
                         cards.add(
                             mapOf(
-                                "question" to card.optString("question"),
+                                "question" to card.optString("question", "No question"),
                                 "answers" to (card.optJSONArray("answers")?.toStringList() ?: emptyList()),
-                                "correctAnswerIndex" to card.optInt("correctAnswerIndex"),
-                                "explanation" to card.optString("explanation"),
-                                "type" to "multiple-choice" // ✅ Explicitly set type
+                                "correctAnswerIndex" to card.optInt("correctAnswerIndex", 0),
+                                "type" to "multiple-choice"
                             )
                         )
                     } else if (type == "term-definition") {
                         cards.add(
                             mapOf(
-                                "term" to card.optString("term"),
-                                "definition" to card.optString("definition"),
-                                "explanation" to card.optString("explanation"),
-                                "type" to "term-definition" // ✅ Explicitly set type
+                                "term" to card.optString("term", "Unknown"),
+                                "definition" to card.optString("definition", "No definition"),
+                                "type" to "term-definition"
                             )
                         )
                     }
                 }
             }
-        }
 
-        if (cards.isEmpty()) {
-            println("❌ No flashcards or quizzes generated. Skipping Firestore save.")
-            return
-        }
-
-        if (generationType == "quiz") {
-            // ✅ Save each MCQ separately in `quiz_questions`
-            for (card in cards) {
-                if (card["type"] == "multiple-choice") {
-                    val quizID = firestore.collection("quiz_questions").document().id
-                    val quizData = mapOf(
-                        "quizID" to quizID,
-                        "question" to card["question"]!!,
-                        "answers" to card["answers"]!!,
-                        "correctAnswerIndex" to card["correctAnswerIndex"]!!,
-                        "explanation" to card["explanation"]!!,
-                        "category" to category,
-                        "title" to title,
-                        "timeLimit" to 10 // ✅ Default time limit for quizzes
-                    )
-
-                    firestore.collection("quiz_questions").document(quizID).set(quizData)
-                        .addOnSuccessListener {
-                            println("✅ AI-generated quiz question saved successfully")
-                        }
-                        .addOnFailureListener { e ->
-                            println("❌ Error saving AI quiz question: ${e.message}")
-                        }
-                }
+            if (cards.isEmpty()) {
+                println("❌ No flashcards or quizzes found in extracted data.")
+                return
             }
-        } else {
-            // ✅ Save flashcards in `flashcard_sets`
+
             val flashcardSetData = mapOf(
                 "setID" to setID,
                 "title" to title,
                 "category" to category,
                 "createdBy" to userId,
-                "isPublic" to true,
-                "cards" to cards // ✅ Store term-definition & MCQs inside `cards` array
+                "cards" to cards
             )
 
-            firestore.collection("flashcard_sets").document(setID).set(flashcardSetData)
+            firestore.collection(if (generationType == "quiz") "quiz_questions" else "flashcard_sets")
+                .document(setID)
+                .set(flashcardSetData)
                 .addOnSuccessListener {
-                    println("✅ AI-generated flashcards saved successfully")
+                    println("✅ AI-generated flashcards saved successfully with title: $title and category: $category")
                 }
                 .addOnFailureListener { e ->
                     println("❌ Error saving AI flashcards: ${e.message}")
                 }
-        }
 
-        // ✅ Update user profile with the created set
-        val userDocumentRef = firestore.collection("users").document(userId)
-        val fieldToUpdate = if (generationType == "quiz") "createdQuizzes" else "createdFlashcards"
-
-        firestore.runTransaction { transaction ->
-            val userDocument = transaction.get(userDocumentRef)
-            val currentSets = userDocument.get(fieldToUpdate) as? MutableList<String> ?: mutableListOf()
-            currentSets.add(setID)
-            transaction.update(userDocumentRef, fieldToUpdate, currentSets)
-        }.addOnSuccessListener {
-            println("✅ User's $fieldToUpdate updated successfully with setID: $setID")
-        }.addOnFailureListener { e ->
-            println("❌ Error updating user's $fieldToUpdate: ${e.message}")
+        } catch (e: JSONException) {
+            println("❌ Error processing AI-generated JSON: ${e.message}")
         }
     }
 
 
 
+
+    // Convert JSONArray to List<String>
     fun JSONArray.toStringList(): List<String> {
         val list = mutableListOf<String>()
         for (i in 0 until this.length()) {
