@@ -61,6 +61,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.runtime.saveable.rememberSaveable
+import com.google.firebase.firestore.FieldValue
 import com.google.gson.Gson
 
 
@@ -374,6 +375,8 @@ fun AnimatedTermDefinitionCard(
     ) { if (it) 0.98f else 1f }
 
     val context = LocalContext.current
+    val firebaseAuth = FirebaseAuth.getInstance()
+    val userId = firebaseAuth.currentUser?.uid // ✅ Retrieve userId here
 
     Box(
         modifier = Modifier
@@ -384,6 +387,9 @@ fun AnimatedTermDefinitionCard(
                 flipped = !flipped
                 if (flipped) {
                     vibratePhone(context)
+                    if (userId != null) {
+                        updateFlashcardsReviewed(userId)
+                    }
                     coroutineScope.launch {
                         delay(2000)
                         moveToNextQuestion(pagerState, pagerState.currentPage, pagerState.pageCount)
@@ -543,6 +549,7 @@ fun MultipleChoiceCard(
                                     playCorrectSound(context)
                                     vibratePhone(context)
                                     onCorrect()
+
                                 } else {
                                     playWrongSound(context)
                                     vibratePhone(context)
@@ -823,6 +830,26 @@ fun updateItemsReviewed(firestore: FirebaseFirestore, userId: String, coroutineS
         } catch (e: Exception) {
             println("❌ Error updating items reviewed: ${e.message}")
         }
+    }
+}
+
+
+fun updateFlashcardsReviewed(userId: String) {
+    val firestore = FirebaseFirestore.getInstance()
+    val currentDate = getCurrentDate()
+    val userRef = firestore.collection("users").document(userId)
+
+    val updates = mapOf(
+        "dailyStats.$currentDate.flashcardsReviewed" to FieldValue.increment(1),
+        "totalFlashcardsReviewed" to FieldValue.increment(1)
+    )
+
+    firestore.runTransaction { transaction ->
+        transaction.update(userRef, updates)
+    }.addOnSuccessListener {
+        println("✅ Flashcards reviewed updated successfully.")
+    }.addOnFailureListener { e ->
+        println("❌ Error updating flashcards reviewed: ${e.message}")
     }
 }
 

@@ -1,5 +1,6 @@
 package com.quadrants.memorix
 
+import StudyTimeTracker
 import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Bitmap
@@ -32,11 +33,72 @@ import java.io.IOException
 import android.os.ParcelFileDescriptor
 import android.util.Base64
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody
 import org.json.JSONException
 
 class MainActivity : ComponentActivity() {
+
+    private lateinit var studyTimeTracker: StudyTimeTracker // ✅ Change val to lateinit var
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        studyTimeTracker = StudyTimeTracker(this) // ✅ Now it works!
+
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        setContent {
+            MemorixTheme {
+                AppNavigation(this, studyTimeTracker)
+            }
+        }
+    }
+
+
+    override fun onResume() {
+        super.onResume()
+        studyTimeTracker.startTracking() // ✅ Start tracking when app is active
+    }
+
+    override fun onPause() {
+        super.onPause()
+        studyTimeTracker.stopTracking() // ✅ Save time when app is paused
+        saveStudyTimeToFirestore()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        saveStudyTimeToFirestore() // ✅ Ensure time is saved when app closes
+    }
+
+    private fun saveStudyTimeToFirestore() {
+        val totalTime = studyTimeTracker.getTotalStudyTime()
+        val userId = FirebaseAuth.getInstance().currentUser?.uid
+        if (userId != null && totalTime > 0) {
+            updateStudyTime(userId, totalTime)
+        }
+    }
+
+    private fun updateStudyTime(userId: String, timeSpent: Long) {
+        val firestore = FirebaseFirestore.getInstance()
+        val currentDate = com.quadrants.memorix.utils.getCurrentDate() // ✅ Ensure correct import
+        val userRef = firestore.collection("users").document(userId)
+
+        val studyTimeUpdate = mapOf(
+            "dailyStats.$currentDate.studyTimeInMinutes" to FieldValue.increment(timeSpent),
+            "totalStudyTimeInMinutes" to FieldValue.increment(timeSpent)
+        )
+
+        firestore.runTransaction { transaction ->
+            transaction.update(userRef, studyTimeUpdate)
+        }.addOnSuccessListener {
+            println("✅ Study time updated: $timeSpent minutes")
+        }.addOnFailureListener { e ->
+            println("❌ Error updating study time: ${e.message}")
+        }
+    }
+
+
     private val firestore = FirebaseFirestore.getInstance()
     private val client = OkHttpClient()
 
@@ -67,7 +129,7 @@ class MainActivity : ComponentActivity() {
         val options = arrayOf("Generate Flashcards", "Generate Quiz")
 
         AlertDialog.Builder(this)
-            .setTitle("Choose Generation Type")
+            .setTitle("Choo se Generation Type")
             .setItems(options) { _, which ->
                 val generationType = if (which == 0) "flashcards" else "quiz"
                 lifecycleScope.launch {
@@ -492,30 +554,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
 
-        setContent {
-            MemorixTheme {
-                val systemUiController = rememberSystemUiController()
-
-                SideEffect {
-                    systemUiController.setStatusBarColor(
-                        color = DarkViolet,
-                        darkIcons = false
-                    )
-                }
-
-                AppNavigation(this)
-
-            }
-        }
-        // Call listModels asynchronously
-        lifecycleScope.launch {
-            listModels()
-        }
-    }
 
     fun JSONArray.toStringList(): List<String> {
         val list = mutableListOf<String>()

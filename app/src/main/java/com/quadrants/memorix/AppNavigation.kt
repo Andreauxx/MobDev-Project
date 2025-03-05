@@ -1,5 +1,6 @@
 package com.quadrants.memorix
 
+import StudyTimeTracker
 import android.annotation.SuppressLint
 import android.content.Context
 import android.net.Uri
@@ -36,7 +37,7 @@ import androidx.compose.ui.unit.dp
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppNavigation(activity: MainActivity) {
+fun AppNavigation(activity: MainActivity,studyTimeTracker: StudyTimeTracker) {
     val navController: NavHostController = rememberNavController()
     val context = LocalContext.current
     val sharedPreferences =
@@ -115,7 +116,8 @@ fun AppNavigation(activity: MainActivity) {
                     LibraryScreen(navController, userId, activity, onPlusClick = { showBottomSheet = true })
                 }
                 composable("stats") {
-                    StatsScreen(navController, activity, onPlusClick = { showBottomSheet = true })
+                    StatsScreen(navController, activity, onPlusClick = { showBottomSheet = true },studyTimeTracker)
+
                 }
                 composable("profile") {
                     ProfileScreen(navController, activity, onPlusClick = { showBottomSheet = true })

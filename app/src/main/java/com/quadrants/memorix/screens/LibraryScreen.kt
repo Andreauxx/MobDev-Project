@@ -42,6 +42,23 @@ fun LibraryScreen(navController: NavController, userId: String, activity: MainAc
     var selectedCategory by remember { mutableStateOf("All") }
     var generatedContent by remember { mutableStateOf<List<Map<String, Any>>>(emptyList()) }
 
+    // Function to handle deletion
+    fun deleteItem(type: String, title: String) {
+        val collection = if (type == "flashcard") "flashcard_sets" else "quiz_questions"
+        firestore.collection(collection)
+            .whereEqualTo("title", title)
+            .get()
+            .addOnSuccessListener { documents ->
+                for (document in documents) {
+                    document.reference.delete()
+                }
+            }
+            .addOnFailureListener { e ->
+                println("❌ Error deleting item: ${e.message}")
+            }
+    }
+
+
     // ✅ Fetch generated AI quizzes and flashcards
     LaunchedEffect(Unit) {
         fetchGeneratedContent { contentList ->
@@ -136,13 +153,14 @@ fun LibraryScreen(navController: NavController, userId: String, activity: MainAc
                                     type = item["type"]?.toString() ?: "",
                                     itemCount = item["itemCount"] as? Int ?: 0,
                                     category = item["category"]?.toString() ?: "General",
-                                    items = item["questions"] as? List<Map<String, Any>> ?: emptyList(), // ✅ Pass flattened list
-                                    navController = navController
-                                ) { showAccessDenied = true }
+                                    items = item["questions"] as? List<Map<String, Any>> ?: emptyList(),
+                                    navController = navController,
+                                    onAccessDenied = { showAccessDenied = true },
+                                    onDelete = { deleteItem(item["type"]?.toString() ?: "", item["title"]?.toString() ?: "") }
+                                )
                             }
                         }
                     }
-
                 }
             }
         }
@@ -211,10 +229,11 @@ fun FolderItem(
     isLocked: Boolean,
     type: String,
     itemCount: Int,
-    category: String, // ✅ Added category parameter
+    category: String,
     items: List<Map<String, Any>>,
     navController: NavController,
-    onAccessDenied: () -> Unit
+    onAccessDenied: () -> Unit,
+    onDelete: () -> Unit // Add this parameter for delete functionality
 ) {
     val gson = Gson()
 
@@ -238,32 +257,77 @@ fun FolderItem(
                     }
                 }
             }
-
-        .padding(vertical = 8.dp),
+            .padding(vertical = 8.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isLocked) Color.Gray else DarkMediumViolet
         ),
         elevation = CardDefaults.cardElevation(8.dp)
-    )
-    {
+    ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_folder),
                 contentDescription = "Folder Icon",
                 tint = Color.Yellow,
-                modifier = Modifier.size(32.dp).padding(end = 16.dp)
+                modifier = Modifier
+                    .size(32.dp)
+                    .padding(end = 16.dp)
             )
 
-            Column {
-                Text(text = folderName, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = White)
-                Text(text = "$itemCount items", fontSize = 14.sp, color = White.copy(alpha = 0.7f))
-                Text(text = category, fontSize = 14.sp, color = White.copy(alpha = 0.5f)) // ✅ Display category
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = folderName,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = White
+                )
+                Text(
+                    text = "$itemCount items",
+                    fontSize = 14.sp,
+                    color = White.copy(alpha = 0.7f)
+                )
+                Text(
+                    text = category,
+                    fontSize = 14.sp,
+                    color = White.copy(alpha = 0.5f)
+                )
+            }
+
+            // Edit and Delete Buttons for Quizzes
+            if (type == "quiz") {
+                IconButton(
+                    onClick = {
+                        // Navigate to Edit Quiz Screen
+                        navController.navigate("editQuiz/${Uri.encode(folderName)}")
+                    },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_edit),
+                        contentDescription = "Edit Icon",
+                        tint = Color.White
+                    )
+                }
+            }
+
+            // Delete Button for Both Quizzes and Flashcards
+            IconButton(
+                onClick = { onDelete() },
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_delete),
+                    contentDescription = "Delete Icon",
+                    tint = Color.Red
+                )
             }
         }
     }
 }
-

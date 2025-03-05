@@ -1,8 +1,10 @@
 package com.quadrants.memorix.screens
 
+import StudyTimeTracker
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -17,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.quadrants.memorix.R
 import com.quadrants.memorix.ui.theme.DarkViolet
@@ -27,59 +30,73 @@ import kotlinx.coroutines.tasks.await
 import com.quadrants.memorix.utils.getCurrentDate
 
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StatsScreen(navController: NavController, activity: MainActivity, onPlusClick: () -> Unit) {
+fun StatsScreen(navController: NavController, activity: MainActivity, onPlusClick: () -> Unit, studyTimeTracker: StudyTimeTracker) {
+
     var showBottomSheet by remember { mutableStateOf(false) }
 
-    // Firebase instances
     val firestore = FirebaseFirestore.getInstance()
     val firebaseAuth = FirebaseAuth.getInstance()
     val userId = firebaseAuth.currentUser?.uid
 
-    // User stats state
     var username by remember { mutableStateOf("User") }
     var totalStudyTimeInMinutes by remember { mutableStateOf(0L) }
-    var dailyGoalInMinutes by remember { mutableStateOf(60L) }
-    var itemsReviewed by remember { mutableStateOf(0L) }
+    var totalFlashcardsReviewed by remember { mutableStateOf(0L) }
+    var totalQuizzesReviewed by remember { mutableStateOf(0L) }
     var streak by remember { mutableStateOf(0L) }
-    var studyData by remember { mutableStateOf(listOf<Float>()) }
-    val coroutineScope = rememberCoroutineScope()
+    var dailyGoalInMinutes by remember { mutableStateOf(60L) }
+    var dailyStats by remember { mutableStateOf(mapOf<String, Long>()) }
+    var last5DaysStats by remember { mutableStateOf(listOf<Map<String, Long>>()) }
 
-    // ✅ Real-time Listener for User Stats
+    LaunchedEffect(Unit) {
+        studyTimeTracker.startTracking()
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            studyTimeTracker.stopTracking()
+            val totalTime = studyTimeTracker.getTotalStudyTime()
+            if (totalTime > 0 && userId != null) {
+                updateStudyTime(userId, totalTime)
+            }
+        }
+    }
+
     LaunchedEffect(userId) {
         if (userId != null) {
-            val userRef = firestore.collection("users").document(userId)
-
-            userRef.addSnapshotListener { snapshot, e ->
-                if (e != null) {
-                    println("❌ Firestore Error: ${e.message}")
-                    return@addSnapshotListener
-                }
-                if (snapshot != null && snapshot.exists()) {
-                    username = snapshot.getString("username") ?: "User"
-                    totalStudyTimeInMinutes = snapshot.getLong("totalStudyTimeInMinutes") ?: 0L
-                    dailyGoalInMinutes = snapshot.getLong("dailyGoalInMinutes") ?: 60L
-                    itemsReviewed = snapshot.getLong("itemsReviewed") ?: 0L
-                    streak = snapshot.getLong("streak") ?: 0L
-                }
-            }
-
-            // ✅ Fetch Daily Stats for Last 5 Days
-            val last5Days = getLast5Days()
             firestore.collection("users").document(userId)
-                .collection("dailyStats")
-                .whereIn("date", last5Days)
-                .addSnapshotListener { snapshot, e ->
-                    if (e != null) {
-                        println("❌ Error fetching daily stats: ${e.message}")
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        println("❌ Firestore Error: ${error.message}")
                         return@addSnapshotListener
                     }
-                    if (snapshot != null) {
-                        studyData = last5Days.map { date ->
-                            val doc = snapshot.documents.find { it.id == date }
-                            doc?.getLong("studyTimeInMin")?.toFloat()?.div(60) ?: 0f
+                    if (snapshot != null && snapshot.exists()) {
+                        val allDailyStats = snapshot.get("dailyStats") as? Map<String, Map<String, Long>> ?: emptyMap()
+                        val last5Days = getLast5Days()
+
+                        last5DaysStats = last5Days.map { date ->
+                            allDailyStats[date] ?: mapOf(
+                                "studyTimeInMinutes" to 0L,
+                                "flashcardsReviewed" to 0L,
+                                "quizzesReviewed" to 0L
+                            )
                         }
+
+                        dailyStats = allDailyStats[getCurrentDate()] ?: emptyMap()
+
+                        // ✅ Fetch Total Stats from Firestore
+                        totalStudyTimeInMinutes = snapshot.getLong("totalStudyTimeInMinutes") ?: 0L
+                        totalFlashcardsReviewed = snapshot.getLong("totalFlashcardsReviewed") ?: 0L
+                        totalQuizzesReviewed = snapshot.getLong("totalQuizzesReviewed") ?: 0L
+
+                        // ✅ Debugging Logs
+                        println("📊 Last 5 Days Stats: $last5DaysStats")
+                        println("📊 Today's Stats: $dailyStats")
+                        println("📊 Total Study Time: $totalStudyTimeInMinutes")
+                        println("📊 Total Flashcards Reviewed: $totalFlashcardsReviewed")
+                        println("📊 Total Quizzes Reviewed: $totalQuizzesReviewed")
                     }
                 }
         }
@@ -88,57 +105,120 @@ fun StatsScreen(navController: NavController, activity: MainActivity, onPlusClic
     Scaffold(
         bottomBar = {
             BottomNavBar(navController = navController, currentScreen = "stats", onPlusClick = onPlusClick)
-        },
-        content = { paddingValues ->
-            Box(
+        }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(DarkViolet)
+                .padding(paddingValues)
+        ) {
+            LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(DarkViolet)
-                    .padding(paddingValues)
+                    .padding(horizontal = 16.dp, vertical = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)  // ✅ Ensures spacing between sections
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp, vertical = 32.dp)
-                ) {
-                    // Profile & Title
-                    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
-                        Text(
-                            text = "Progress",
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "Hey, $username!",
-                            fontSize = 16.sp,
-                            color = Color.White.copy(alpha = 0.7f),
-                            modifier = Modifier.padding(bottom = 16.dp)
+                item {
+                    Text(
+                        text = "Progress",
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "Hey, $username!",
+                        fontSize = 16.sp,
+                        color = Color.White.copy(alpha = 0.7f),
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                }
+
+                // ✅ Move BarChart to the Top
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(300.dp)  // ✅ Ensures enough space for the chart
+                    ) {
+                        BarChart(
+                            studyData = last5DaysStats.map { it["studyTimeInMinutes"]?.toFloat() ?: 0f }
                         )
                     }
+                }
 
-                    // Bar Chart
+                item {
                     Text(
-                        text = "Study Progress Chart (Last 5 Days)",
-                        fontSize = 18.sp,
+                        text = "Today's Stats",
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
+                }
+                item { StatCard("Study Time", "${dailyStats["studyTimeInMinutes"] ?: 0}m", R.drawable.ic_time) }
+                item { StatCard("Flashcards Reviewed", "${dailyStats["flashcardsReviewed"] ?: 0}", R.drawable.ic_flashcard) }
+                item { StatCard("Quizzes Reviewed", "${dailyStats["quizzesReviewed"] ?: 0}", R.drawable.ic_quiz) }
 
-                    BarChart(studyData = studyData)
+                item {
+                    Text(
+                        text = "Total Stats",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+                item { StatCard("Total Study Time", "${totalStudyTimeInMinutes / 60}h ${totalStudyTimeInMinutes % 60}m", R.drawable.ic_time) }
+                item { StatCard("Total Flashcards Reviewed", totalFlashcardsReviewed.toString(), R.drawable.ic_flashcard) }
+                item { StatCard("Total Quizzes Reviewed", totalQuizzesReviewed.toString(), R.drawable.ic_quiz) }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                item {
+                    Text(
+                        text = "Goals & Streak",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+                item { StatCard("🔥 Streak", "$streak days", R.drawable.ic_streak) }
+                item { StatCard("Daily Goal", "${dailyGoalInMinutes / 60}h", R.drawable.ic_goal) }
 
-                    // Statistics Cards
-                    StatCard("Total Study Time", "${totalStudyTimeInMinutes / 60}h ${totalStudyTimeInMinutes % 60}m", R.drawable.ic_time)
-                    StatCard("Daily Goal", "${dailyGoalInMinutes / 60}h", R.drawable.ic_goal)
-                    StatCard("Items Reviewed", itemsReviewed.toString(), R.drawable.ic_review)
-                    StatCard("🔥 Streak", "$streak days", R.drawable.ic_streak)
+                item {
+                    Text(
+                        text = "Last 5 Days' Stats",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+
+                if (last5DaysStats.all { it["studyTimeInMinutes"] == 0L && it["flashcardsReviewed"] == 0L && it["quizzesReviewed"] == 0L }) {
+                    item {
+                        Text(
+                            text = "No data available for the last 5 days.",
+                            fontSize = 16.sp,
+                            color = Color.White.copy(alpha = 0.7f),
+                            modifier = Modifier.padding(vertical = 16.dp)
+                        )
+                    }
+                } else {
+                    items(last5DaysStats.size) { index ->
+                        val date = getLast5Days()[index]
+                        StatCard(
+                            title = date,
+                            value = "${last5DaysStats[index]["studyTimeInMinutes"] ?: 0}m | " +
+                                    "${last5DaysStats[index]["flashcardsReviewed"] ?: 0} 📚 | " +
+                                    "${last5DaysStats[index]["quizzesReviewed"] ?: 0} 🧠",
+                            iconId = R.drawable.ic_calendar
+                        )
+                    }
                 }
             }
         }
-    )
+    }
 
     if (showBottomSheet) {
         ModalBottomSheet(
@@ -149,39 +229,101 @@ fun StatsScreen(navController: NavController, activity: MainActivity, onPlusClic
     }
 }
 
+
+
+private fun updateStudyTime(userId: String, timeSpent: Long) {
+    val firestore = FirebaseFirestore.getInstance()
+    val currentDate = getCurrentDate()
+    val userRef = firestore.collection("users").document(userId)
+
+    firestore.runTransaction { transaction ->
+        val snapshot = transaction.get(userRef)
+
+        val currentStats = snapshot.get("dailyStats.$currentDate") as? Map<String, Long> ?: emptyMap()
+
+        val existingTime = currentStats["studyTimeInMinutes"] ?: 0L
+        val newTime = existingTime + timeSpent
+
+        val studyTimeUpdate = mapOf(
+            "dailyStats.$currentDate.studyTimeInMinutes" to newTime, // ✅ Add instead of overwriting
+            "totalStudyTimeInMinutes" to FieldValue.increment(timeSpent)
+        )
+
+        println("📝 Updating study time for $currentDate: $newTime minutes")
+
+        transaction.update(userRef, studyTimeUpdate)
+    }.addOnSuccessListener {
+        println("✅ Study time updated successfully!")
+    }.addOnFailureListener { e ->
+        println("❌ Error updating study time: ${e.message}")
+    }
+
+    // ✅ Also update daily stats
+    updateDailyStats(userId, studyTimeInMinutes = timeSpent.toInt())
+}
+
+
 // ✅ Enhanced BarChart Function
 @Composable
 fun BarChart(studyData: List<Float>) {
-    val maxData = studyData.maxOrNull() ?: 1f
-    val barColors = studyData.map { if (it == maxData) Color.Cyan.copy(alpha = 1f) else Color.Cyan.copy(alpha = 0.7f) }
-    val dates = getLast5Days()
+    val last5DaysData = studyData.takeLast(5) // ✅ Ensure only the last 5 days (including today)
+    val dates = getLast5Days().takeLast(5) // ✅ Get corresponding last 5 dates
 
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Canvas(modifier = Modifier.fillMaxWidth().height(200.dp)) {
-            val barWidth = size.width / (studyData.size * 2)
-            val scaleFactor = size.height / maxData
+    // ✅ Handle empty or all-zero data
+    if (last5DaysData.all { it == 0f }) {
+        Text(
+            text = "No study data available for the last 5 days.",
+            fontSize = 16.sp,
+            color = Color.White.copy(alpha = 0.7f),
+            modifier = Modifier.padding(16.dp)
+        )
+        return
+    }
 
-            studyData.forEachIndexed { index, value ->
-                drawRect(
-                    color = barColors[index],
-                    topLeft = Offset(index * 2 * barWidth + barWidth / 2, size.height - (value * scaleFactor)),
-                    size = Size(barWidth, value * scaleFactor)
-                )
+    val maxData = last5DaysData.maxOrNull()?.coerceAtLeast(1f) ?: 1f // ✅ Prevent division by zero
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(250.dp) // ✅ Adjusted to fit bars + labels
+    ) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp) // ✅ Fixed height for consistency
+        ) {
+            val barWidth = size.width / (last5DaysData.size * 2) // ✅ Adjust width based on available data
+            val spaceBetweenBars = barWidth * 0.5f
+            val scaleFactor = size.height / maxData // ✅ Prevent bars from being too small
+
+            println("📊 Canvas Size: $size")
+            println("📊 Bar Width: $barWidth")
+            println("📊 Scale Factor: $scaleFactor")
+
+            last5DaysData.forEachIndexed { index, value ->
+                if (value > 0) {
+                    val xOffset = index * (barWidth + spaceBetweenBars) + barWidth
+                    println("📊 Drawing Bar at Index $index: Value = $value, X Offset = $xOffset")
+                    drawRect(
+                        color = Color.Cyan,
+                        topLeft = Offset(xOffset, size.height - (value * scaleFactor)),
+                        size = Size(barWidth, value * scaleFactor)
+                    )
+                }
             }
         }
 
-        // ✅ Labels under each bar
+        // ✅ Show Date Labels Below Each Bar
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            dates.forEachIndexed { index, date ->
+            dates.forEach { date ->
                 Text(
-                    text = "${date.takeLast(2)}",
+                    text = date.takeLast(2), // ✅ Show last 2 digits (day)
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier.padding(top = 4.dp)
+                    color = Color.White
                 )
             }
         }
@@ -190,15 +332,90 @@ fun BarChart(studyData: List<Float>) {
 
 
 
+
+
+
+private fun updateDailyStats(userId: String, flashcardsReviewed: Int = 0, quizzesReviewed: Int = 0, studyTimeInMinutes: Int = 0) {
+    val firestore = FirebaseFirestore.getInstance()
+    val currentDate = getCurrentDate()
+    val userRef = firestore.collection("users").document(userId)
+
+    firestore.runTransaction { transaction ->
+        val snapshot = transaction.get(userRef)
+
+        val currentStats = snapshot.get("dailyStats.$currentDate") as? Map<String, Long> ?: emptyMap()
+
+        val existingFlashcards = currentStats["flashcardsReviewed"] ?: 0L
+        val existingQuizzes = currentStats["quizzesReviewed"] ?: 0L
+        val existingTime = currentStats["studyTimeInMinutes"] ?: 0L
+
+        val newTime = existingTime + studyTimeInMinutes
+        val newFlashcards = existingFlashcards + flashcardsReviewed
+        val newQuizzes = existingQuizzes + quizzesReviewed
+
+        val dailyStatsUpdate = mapOf(
+            "dailyStats.$currentDate.studyTimeInMinutes" to newTime,
+            "dailyStats.$currentDate.flashcardsReviewed" to newFlashcards,
+            "dailyStats.$currentDate.quizzesReviewed" to newQuizzes
+        )
+
+        val cumulativeStatsUpdate = mapOf(
+            "totalStudyTimeInMinutes" to FieldValue.increment(studyTimeInMinutes.toLong()),
+            "totalFlashcardsReviewed" to FieldValue.increment(flashcardsReviewed.toLong()),
+            "totalQuizzesReviewed" to FieldValue.increment(quizzesReviewed.toLong())
+        )
+
+        println("📊 Updating Study Time: $existingTime + $studyTimeInMinutes = $newTime")
+        println("📊 Updating Flashcards: $existingFlashcards + $flashcardsReviewed = $newFlashcards")
+        println("📊 Updating Quizzes: $existingQuizzes + $quizzesReviewed = $newQuizzes")
+
+        transaction.update(userRef, dailyStatsUpdate)
+        transaction.update(userRef, cumulativeStatsUpdate)
+    }.addOnSuccessListener {
+        println("✅ Daily stats updated successfully")
+    }.addOnFailureListener { e ->
+        println("❌ Error updating daily stats: ${e.message}")
+    }
+}
+
+
+private fun resetDailyStatsIfNeeded(userId: String) {
+    val firestore = FirebaseFirestore.getInstance()
+    val currentDate = getCurrentDate()
+    val userRef = firestore.collection("users").document(userId)
+
+    firestore.runTransaction { transaction ->
+        val snapshot = transaction.get(userRef)
+        val lastRecordedDate = snapshot.getString("lastRecordedDate")
+        val todayStats = snapshot.get("dailyStats.$currentDate") as? Map<String, Long>
+
+        // ✅ Only reset if the stats for today are missing
+        if (lastRecordedDate != currentDate && (todayStats == null || todayStats.isEmpty())) {
+            val resetUpdate = mapOf(
+                "dailyStats.$currentDate.studyTimeInMinutes" to 0,
+                "dailyStats.$currentDate.flashcardsReviewed" to 0,
+                "dailyStats.$currentDate.quizzesReviewed" to 0,
+                "lastRecordedDate" to currentDate
+            )
+            transaction.update(userRef, resetUpdate)
+        }
+    }.addOnSuccessListener {
+        println("✅ Daily stats reset only if missing for $currentDate")
+    }.addOnFailureListener { e ->
+        println("❌ Error resetting daily stats: ${e.message}")
+    }
+}
+
+
 // ✅ Get the last 5 days in yyyy-MM-dd format
 fun getLast5Days(): List<String> {
     val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
     val calendar = java.util.Calendar.getInstance()
     return List(5) {
         val date = sdf.format(calendar.time)
-        calendar.add(java.util.Calendar.DAY_OF_YEAR, -1)
+        calendar.add(java.util.Calendar.DAY_OF_YEAR, -1) // Move back one day
         date
-    }.reversed()
+    }.reversed() // Reverse to get the most recent date first
 }
 
 @Composable

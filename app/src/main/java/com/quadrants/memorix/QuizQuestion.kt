@@ -14,4 +14,5 @@ data class QuizQuestion(
     val createdAt: Long = System.currentTimeMillis(), // ✅ Timestamp for when question was created
     val difficulty: String = "Medium", // ✅ Easy, Medium, Hard
     val questionType: String = "multiple_choice" // ✅ Question type
+
 )
