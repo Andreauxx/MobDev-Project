@@ -233,9 +233,11 @@ fun FolderItem(
     items: List<Map<String, Any>>,
     navController: NavController,
     onAccessDenied: () -> Unit,
-    onDelete: () -> Unit // Add this parameter for delete functionality
+    onDelete: () -> Unit
 ) {
     val gson = Gson()
+    var showConfirmDialog by remember { mutableStateOf(false) }
+    var showSuccessDialog by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier
@@ -300,11 +302,10 @@ fun FolderItem(
                 )
             }
 
-            // Edit and Delete Buttons for Quizzes
+            // Edit Button (for Quizzes)
             if (type == "quiz") {
                 IconButton(
                     onClick = {
-                        // Navigate to Edit Quiz Screen
                         navController.navigate("editQuiz/${Uri.encode(folderName)}")
                     },
                     modifier = Modifier.size(24.dp)
@@ -317,9 +318,9 @@ fun FolderItem(
                 }
             }
 
-            // Delete Button for Both Quizzes and Flashcards
+            // Delete Button (for Flashcards & Quizzes)
             IconButton(
-                onClick = { onDelete() },
+                onClick = { showConfirmDialog = true }, // Show confirmation dialog before deleting
                 modifier = Modifier.size(24.dp)
             ) {
                 Icon(
@@ -330,4 +331,46 @@ fun FolderItem(
             }
         }
     }
+
+    // ✅ Confirmation Dialog
+    if (showConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showConfirmDialog = false },
+            title = { Text("Confirm Deletion") },
+            text = { Text("Are you sure you want to delete \"$folderName\"? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDelete()
+                        showConfirmDialog = false
+                        showSuccessDialog = true
+                    }
+                ) {
+                    Text("Delete", color = Color.Red)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirmDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // ✅ Success Dialog
+    if (showSuccessDialog) {
+        AlertDialog(
+            onDismissRequest = { showSuccessDialog = false },
+            title = { Text("Success") },
+            text = { Text("\"$folderName\" has been successfully deleted.") },
+            confirmButton = {
+                TextButton(
+                    onClick = { showSuccessDialog = false }
+                ) {
+                    Text("OK", color = MediumViolet)
+                }
+            }
+        )
+    }
 }
+d
