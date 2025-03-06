@@ -474,6 +474,15 @@ class MainActivity : ComponentActivity() {
 
 
 
+    private fun showSuccessDialog(title: String, category: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Success!")
+            .setMessage("Your AI-generated study set **'$title'** under **'$category'** has been saved successfully. 🎉")
+            .setPositiveButton("OK") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
+    }
 
 
 
@@ -565,6 +574,11 @@ class MainActivity : ComponentActivity() {
                 .set(flashcardSetData)
                 .addOnSuccessListener {
                     println("✅ AI-generated flashcards saved successfully with title: $title and category: $category")
+
+                    // ✅ Show success dialog after saving
+                    runOnUiThread {
+                        showSuccessDialog(title, category)
+                    }
                 }
                 .addOnFailureListener { e ->
                     println("❌ Error saving AI flashcards: ${e.message}")

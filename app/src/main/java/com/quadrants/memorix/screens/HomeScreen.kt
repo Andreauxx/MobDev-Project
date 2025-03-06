@@ -63,6 +63,7 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.google.firebase.firestore.FieldValue
 import com.google.gson.Gson
+import java.util.Calendar
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -92,6 +93,9 @@ fun HomeScreen(
 
     // ✅ Retrieve Quiz Data from Navigation
     val quizJson = navController.currentBackStackEntry?.arguments?.getString("quizJson")
+
+
+
 
     LaunchedEffect(quizJson) {
         if (!quizJson.isNullOrEmpty()) {
@@ -185,6 +189,56 @@ fun HomeScreen(
 
     // ✅ Display Quiz Questions if Available
     val isQuizMode = quizData.isNotEmpty()
+    var streak by remember { mutableStateOf(0) }
+
+
+    // Fetch streak from Firestore when user logs in
+    LaunchedEffect(userId) {
+        if (userId != null) {
+            firestore.collection("users").document(userId).get()
+                .addOnSuccessListener { document ->
+                    val stats = document.get("dailyStats") as? Map<String, Any> ?: emptyMap()
+                    val lastActiveDate = document.getString("lastActiveDate") ?: ""
+
+                    // Get today's date in the correct format
+                    val today = getCurrentDate()
+                    val yesterday = getYesterdayDate()
+
+                    // Initialize streak
+                    var currentStreak = (document.getLong("streak") ?: 0).toInt()
+
+                    // Check if user was active yesterday
+                    if (lastActiveDate == today) {
+                        println("✅ User already active today. Streak remains: $currentStreak")
+                    } else if (lastActiveDate == yesterday) {
+                        currentStreak += 1  // User was active yesterday, increase streak
+                        println("✅ User was active yesterday. Streak increased to: $currentStreak")
+                    } else {
+                        currentStreak = 1  // User skipped a day, reset streak
+                        println("❌ User skipped a day. Streak reset to: $currentStreak")
+                    }
+
+                    // Update the streak state
+                    streak = currentStreak
+
+                    // Update Firestore with new streak and last active date
+                    firestore.collection("users").document(userId)
+                        .update(
+                            "streak", currentStreak,
+                            "lastActiveDate", today
+                        )
+                        .addOnSuccessListener {
+                            println("✅ Streak updated successfully: $currentStreak")
+                        }
+                        .addOnFailureListener { e ->
+                            println("❌ Error updating streak: ${e.message}")
+                        }
+                }
+                .addOnFailureListener { e ->
+                    println("❌ Error fetching streak: ${e.message}")
+                }
+        }
+    }
 
     Scaffold(
         bottomBar = {
@@ -209,7 +263,7 @@ fun HomeScreen(
             ) {
                 SearchBar()
                 Spacer(modifier = Modifier.height(12.dp))
-                StreakCounter(5) // Streak placeholder
+                StreakCounter(streak = streak) // Pass the streak value here
                 Spacer(modifier = Modifier.height(24.dp))
 
                 if (isLoading) {
@@ -244,14 +298,51 @@ fun HomeScreen(
                     ) { page ->
                         if (quizData.isNotEmpty()) {  // ✅ Ensure we are displaying quiz questions
                             val quizQuestion = quizData[page]
-                            MultipleChoiceCard(quizQuestion, pagerState, coroutineScope, {}, {})
+                            MultipleChoiceCard(
+                                quizQuestion,
+                                pagerState,
+                                coroutineScope,
+                                onCorrect = { /* Handle correct answer */ },
+                                onWrong = { /* Handle wrong answer */ },
+                                updateStreak = {
+                                    if (userId != null) {
+                                        updateStreak(firestore, userId, coroutineScope) { newStreak ->
+                                            streak = newStreak // Update UI
+                                        }
+                                    }
+                                }
+                            )
                         } else {
                             val flashcard = flashcards.getOrNull(page)
                             if (flashcard != null) {
                                 if (flashcard.answers.size == 1) {
-                                    AnimatedTermDefinitionCard(flashcard, pagerState, coroutineScope)
+                                    AnimatedTermDefinitionCard(
+                                        flashcard,
+                                        pagerState,
+                                        coroutineScope,
+                                        updateStreak = {
+                                            if (userId != null) {
+                                                updateStreak(firestore, userId, coroutineScope) { newStreak ->
+                                                    streak = newStreak // Update UI
+                                                }
+                                            }
+                                        }
+                                    )
                                 } else {
-                                    MultipleChoiceCard(flashcard, pagerState, coroutineScope, {}, {})
+                                    MultipleChoiceCard(
+                                        flashcard,
+                                        pagerState,
+                                        coroutineScope,
+                                        onCorrect = { /* Handle correct answer */ },
+                                        onWrong = { /* Handle wrong answer */ },
+                                        updateStreak = {
+                                            if (userId != null) {
+                                                updateStreak(firestore, userId, coroutineScope) { newStreak ->
+                                                    streak = newStreak // Update UI
+                                                }
+                                            }
+                                        }
+                                    )
                                 }
                             }
                         }
@@ -280,6 +371,8 @@ fun HomeScreen(
 @Composable
 fun StreakCounter(streak: Int) {
     val infiniteTransition = rememberInfiniteTransition(label = "flame")
+
+    // Animation for the flame icon
     val scale by infiniteTransition.animateFloat(
         initialValue = 0.9f,
         targetValue = 1.1f,
@@ -300,6 +393,7 @@ fun StreakCounter(streak: Int) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
+        // Animated flame icon
         Text(
             text = "🔥",
             fontSize = 28.sp,
@@ -310,6 +404,7 @@ fun StreakCounter(streak: Int) {
                 }
         )
         Spacer(modifier = Modifier.width(12.dp))
+        // Streak text
         Text(
             text = "Streak: $streak",
             fontSize = 22.sp,
@@ -318,6 +413,19 @@ fun StreakCounter(streak: Int) {
         )
     }
 }
+
+fun getCurrentDate(): String {
+    val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    return formatter.format(Date())
+}
+
+fun getYesterdayDate(): String {
+    val calendar = Calendar.getInstance()
+    calendar.add(Calendar.DAY_OF_YEAR, -1)
+    val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    return formatter.format(calendar.time)
+}
+
 
 @Composable
 fun PaginationDots(pagerState: PagerState, coroutineScope: CoroutineScope) {
@@ -359,7 +467,8 @@ fun PaginationDots(pagerState: PagerState, coroutineScope: CoroutineScope) {
 fun AnimatedTermDefinitionCard(
     flashcard: QuizQuestion,
     pagerState: PagerState,
-    coroutineScope: CoroutineScope
+    coroutineScope: CoroutineScope,
+    updateStreak: () -> Unit // Callback to update streak
 ) {
     var flipped by remember { mutableStateOf(false) }
     val transition = updateTransition(targetState = flipped, label = "Card Flip")
@@ -389,6 +498,7 @@ fun AnimatedTermDefinitionCard(
                     vibratePhone(context)
                     if (userId != null) {
                         updateFlashcardsReviewed(userId)
+                        updateStreak() // Update streak on correct flip
                     }
                     coroutineScope.launch {
                         delay(2000)
@@ -404,7 +514,7 @@ fun AnimatedTermDefinitionCard(
             )
             .shadow(20.dp, RoundedCornerShape(22.dp)),
         contentAlignment = Alignment.Center
-    ) {
+    )  {
         Card(
             shape = RoundedCornerShape(22.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
@@ -494,13 +604,41 @@ fun AnimatedTermDefinitionCard(
     }
 }
 
+fun updateStreak(firestore: FirebaseFirestore, userId: String, coroutineScope: CoroutineScope, onSuccess: (Int) -> Unit) {
+    coroutineScope.launch {
+        try {
+            val today = getCurrentDate()
+            val userRef = firestore.collection("users").document(userId)
+
+            // Fetch the current streak
+            userRef.get().addOnSuccessListener { document ->
+                val currentStreak = (document.getLong("streak") ?: 0).toInt()
+                val newStreak = currentStreak + 1 // Increment streak
+
+                // Update Firestore
+                userRef.update("streak", newStreak)
+                    .addOnSuccessListener {
+                        println("✅ Streak updated successfully: $newStreak")
+                        onSuccess(newStreak) // Update UI
+                    }
+                    .addOnFailureListener { e ->
+                        println("❌ Error updating streak: ${e.message}")
+                    }
+            }
+        } catch (e: Exception) {
+            println("❌ Error updating streak: ${e.message}")
+        }
+    }
+}
+
 @Composable
 fun MultipleChoiceCard(
     flashcard: QuizQuestion,
     pagerState: PagerState,
     coroutineScope: CoroutineScope,
-    onCorrect: () -> Unit,
-    onWrong: () -> Unit
+    onCorrect: () -> Unit, // Callback for correct answer
+    onWrong: () -> Unit,   // Callback for wrong answer
+    updateStreak: () -> Unit // Callback to update streak
 ) {
     var selectedAnswerIndex by remember { mutableStateOf<Int?>(null) }
     var showExplanation by remember { mutableStateOf(false) }
@@ -549,7 +687,7 @@ fun MultipleChoiceCard(
                                     playCorrectSound(context)
                                     vibratePhone(context)
                                     onCorrect()
-
+                                    updateStreak() // Update streak on correct answer
                                 } else {
                                     playWrongSound(context)
                                     vibratePhone(context)

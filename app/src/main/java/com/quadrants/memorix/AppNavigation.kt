@@ -46,6 +46,8 @@ fun AppNavigation(activity: MainActivity,studyTimeTracker: StudyTimeTracker) {
 
     var showBottomSheet by remember { mutableStateOf(false) }
 
+
+
     Scaffold(
         modifier = Modifier.padding(0.dp), // ✅ Removes all padding from Scaffold
         bottomBar = {
@@ -63,6 +65,16 @@ fun AppNavigation(activity: MainActivity,studyTimeTracker: StudyTimeTracker) {
         contentWindowInsets = WindowInsets(0.dp) // ✅ Ensures no window insets
     ) { _ ->
         Box(modifier = Modifier.fillMaxSize()) {
+
+
+            val startDestination = if (hasSeenOnboarding) {
+                val userId = sharedPreferences.getString("userId", null)
+                if (userId == null) "signup" else "home"
+            } else {
+                "onboarding"
+            }
+
+
             NavHost(
                 navController = navController,
                 startDestination = "splash",
@@ -72,7 +84,8 @@ fun AppNavigation(activity: MainActivity,studyTimeTracker: StudyTimeTracker) {
                 composable("splash") { SplashScreen(navController) }
 
                 // Authentication Screens
-                composable("signup") { SignUpScreen(navController, sharedPreferences) }
+                composable("signup") { SignUpScreen(navController, sharedPreferences)
+                }
                 composable("login") { LoginScreen(navController, sharedPreferences) }
 
                 // Onboarding
@@ -94,6 +107,7 @@ fun AppNavigation(activity: MainActivity,studyTimeTracker: StudyTimeTracker) {
                         }
                     })
                 }
+
 
                 composable("user_details/{userId}/{name}/{email}") { backStackEntry ->
                     val userId = backStackEntry.arguments?.getString("userId") ?: ""
